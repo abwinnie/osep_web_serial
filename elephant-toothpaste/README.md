@@ -23,6 +23,7 @@ npm run preview
 
 ```sh
 PLAYWRIGHT_MODULE=/path/to/playwright CHROMIUM_PATH=/usr/bin/chromium node test/browser.cjs
+PLAYWRIGHT_MODULE=/path/to/playwright CHROMIUM_PATH=/usr/bin/chromium node test/estimates-browser.cjs
 ```
 
 測試需先啟動開發伺服器，預設 5173；可設定 `TEST_URL` 測試正式建置的子路徑。實際結果見 [TEST-RESULTS.md](TEST-RESULTS.md)。瀏覽器驗證實際等待兩次模擬完成，不使用假的完成事件。截圖與 CSV 輸出至作業系統暫存目錄。
@@ -32,6 +33,7 @@ PLAYWRIGHT_MODULE=/path/to/playwright CHROMIUM_PATH=/usr/bin/chromium node test/
 - `src/catalysts.ts`：十種物質、物態／濃度基準、證據及限制。
 - `src/model.ts`：示意速率、進度與獨立固定步進粒子模型。
 - `src/scene.ts`：場景、開口玻璃錐形瓶、固定底部液面、實例化泡沫與 OrbitControls。
+- `src/estimates.ts`：化學計量及未校準的體積／質量示意假設。
 - `src/history.ts`：不可變快照、本機資料驗證、去重及分組。
 - `src/csv.ts`：全歷史與分組 CSV，保留未估算欄位。
 - `src/main.ts`：控制項與單一歷史來源的表格／圖表同步。
@@ -42,7 +44,7 @@ PLAYWRIGHT_MODULE=/path/to/playwright CHROMIUM_PATH=/usr/bin/chromium node test/
 
 泡沫發射率、重力、擾動與粒徑為獨立動畫參數。固定種子與 60 Hz 步進讓更新頻率不影響回歸結果；粒子上限 6,000，單次最大生成約 6,000 顆，重新開始替換本次粒子，不無限累積。完成後統計快照固定；畫面中的殘餘泡沫繼續落地、緩慢擴散，30 秒後逐步縮小至原半徑的 65%，保留堆積，不瞬間消失。30%＋KI 10% 的新基準約 3,600 顆、最高 127.3 場景單位，非真實量測。這不是重建既有版本的證據。
 
-液面下降最多 7.5 場景單位，由上方下降、底部固定；只是進度視覺化。無密度、含水率與氣體捕捉率的可靠模型，體積／質量一律顯示「未估算」，圖表不為這些指標產生假資料。w/w% 的溶液定義為溶質質量除以溶液總質量；MnO₂／酵母採懸浮混合物名目質量百分比，不假設溶解，也不假設 100% 均能形成水溶液。
+液面下降最多 7.5 場景單位，由上方下降、底部固定；只是進度視覺化。體積／質量改採 `foam-scenario-1.0` 示意估算：名目 H₂O₂ 視為 w/w%，溶液與液相密度假設 1 g/mL，依 2 H₂O₂ → 2 H₂O + O₂ 與反應進度計算氧氣；25°C／1 atm 下氣體莫耳體積取 24,465 mL/mol，假設捕捉 15% 氧氣、目標液相體積比例 2%，且夾帶液體上限為剩餘液體質量的 50%。體積為捕捉氣體加夾帶液體（mL），質量為捕捉氧氣加夾帶液體（g），未計催化劑添加量及熱效應。所有假設均未實驗校準，會隨新紀錄快照保存；與動畫粒子數無關。舊紀錄的 null 值保留「未估算」，不回填、不冒充當時估算。w/w% 的溶液定義為溶質質量除以溶液總質量；MnO₂／酵母採懸浮混合物名目質量百分比，不假設溶解，也不假設 100% 均能形成水溶液。
 
 每次按開始後會保存當時參數，完成才新增一次紀錄。暫停不產生紀錄；重新開始捨棄未完成的動畫，重設只改控制值；兩者都保留歷史。顏色可即時改變觀察畫面，歷史 RGB 保留開始時的設定。比較直接由歷史依 H₂O₂ 濃度分組，保留每筆不同催化劑濃度；提醒時間、進度、版本或濃度差異，沒有另一份手動比較清單。
 

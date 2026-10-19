@@ -1,3 +1,4 @@
+import { estimateFoam, ESTIMATE_ASSUMPTIONS } from "../src/estimates";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -102,7 +103,8 @@ test("快照不可變、唯一 ID、自動分組不合併濃度及 CSV 一致", 
   assert.equal(group([], 30).length, 0);
   const exported = csv(records);
   assert.ok(exported.startsWith("\uFEFF"));
-  assert.ok(exported.includes("未估算"));
+  assert.ok(exported.includes(String(a.volume)));
+  assert.ok(exported.includes(String(a.mass)));
   assert.ok(exported.includes(String(a.height)));
   assert.ok(exported.includes(a.id));
   assert.equal(exported.split("\r\n").length, 4);
@@ -117,5 +119,52 @@ test("重新載入去重，損毀與未知版本資料不靜默覆寫", () => {
   assert.throws(() => loadHistory({ getItem: () => "{broken" }));
   assert.throws(() =>
     loadHistory({ getItem: () => JSON.stringify([{ id: "old" }]) }),
+  );
+});
+
+test("體積與質量依化學計量與假設換算，不依賴粒子數，且舊紀錄不補算", () => {
+  const p = defaults();
+  assert.deepEqual(estimateFoam(p, 0), { volume: 0, mass: 0 });
+  assert.deepEqual(estimateFoam({ ...p, h2o2: 0 }, 1), { volume: 0, mass: 0 });
+  const full = estimateFoam(p, 1),
+    half = estimateFoam(p, 0.5);
+  const moles = (100 * 0.3) / 34.0147 / 2;
+  const gas = moles * 24465 * 0.15;
+  const liquid = (gas * 0.02) / 0.98;
+  assert.ok(Math.abs(full.volume - (gas + liquid)) < 1e-8);
+  assert.ok(Math.abs(full.mass - (moles * 31.998 * 0.15 + liquid)) < 1e-8);
+  assert.ok(full.volume > half.volume && full.mass > half.mass);
+  for (const h2o2 of [0, 10, 30, 100]) {
+    const value = estimateFoam({ ...p, h2o2 }, 1);
+    assert.ok(value.mass <= 100);
+    assert.ok(Number.isFinite(value.volume));
+  }
+  const sim = run();
+  const a = createRecord(sim, 1, 1);
+  sim.particles = [];
+  sim.emitted = 0;
+  assert.deepEqual(estimateFoam(sim.parameters, sim.progress), {
+    volume: a.volume,
+    mass: a.mass,
+  });
+  assert.deepEqual(a.estimateAssumptions, ESTIMATE_ASSUMPTIONS);
+  const old = {
+    ...a,
+    modelVersion: "illustrative-1.0",
+    volume: null,
+    mass: null,
+  };
+  delete old.estimateAssumptions;
+  const data = loadHistory({ getItem: () => JSON.stringify([old, a]) });
+  assert.equal(data[0].volume, a.volume); // duplicate ID keeps one actual snapshot
+  old.id = "legacy";
+  const mixed = loadHistory({ getItem: () => JSON.stringify([old, a]) });
+  assert.equal(mixed.length, 2);
+  assert.equal(mixed[0].volume, null);
+  assert.equal(mixed[0].mass, null);
+  assert.ok(csv(mixed).includes("未估算"));
+  assert.ok(csv(mixed).includes(String(a.volume)));
+  assert.throws(() =>
+    loadHistory({ getItem: () => JSON.stringify([{ ...a, mass: -1 }]) }),
   );
 });

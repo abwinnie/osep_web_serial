@@ -1,3 +1,9 @@
+import {
+  estimateFoam,
+  ESTIMATE_ASSUMPTIONS,
+  ESTIMATE_NOTE,
+  type EstimateAssumptions,
+} from "./estimates";
 import { catalystById } from "./catalysts";
 import { MODEL_VERSION, type Parameters, type FoamSimulation } from "./model";
 export const STORAGE_KEY = "elephant-toothpaste.history.v1";
@@ -11,8 +17,9 @@ export interface RecordEntry {
   concentrationBasis: string;
   rate: number;
   height: number;
-  volume: null;
-  mass: null;
+  volume: number | null;
+  mass: number | null;
+  estimateAssumptions?: EstimateAssumptions;
   progress: number;
   liquidDrop: number;
   particles: number;
@@ -38,15 +45,15 @@ export function createRecord(
     concentrationBasis: c.concentrationBasis,
     rate,
     height: sim.maxHeight,
-    volume: null,
-    mass: null,
+    ...estimateFoam(p, sim.progress),
+    estimateAssumptions: structuredClone(ESTIMATE_ASSUMPTIONS),
     progress: sim.progress,
     liquidDrop: sim.liquidDrop,
     particles: sim.emitted,
     duration: sim.elapsed,
     modelVersion: MODEL_VERSION,
     evidence: c.evidenceLevel,
-    notes: c.notes + " 資料依據：" + c.source,
+    notes: c.notes + " 資料依據：" + c.source + " " + ESTIMATE_NOTE,
   };
 }
 export function validRecord(r: unknown): r is RecordEntry {
@@ -75,8 +82,8 @@ export function validRecord(r: unknown): r is RecordEntry {
     typeof x.modelVersion === "string" &&
     typeof x.evidence === "string" &&
     typeof x.concentrationBasis === "string" &&
-    x.volume === null &&
-    x.mass === null
+    (x.volume === null || (Number.isFinite(x.volume) && x.volume >= 0)) &&
+    (x.mass === null || (Number.isFinite(x.mass) && x.mass >= 0))
   );
 }
 export function unique(records: RecordEntry[]) {

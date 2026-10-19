@@ -1,3 +1,4 @@
+import { estimateFoam, ESTIMATE_NOTE } from "./estimates";
 import "./style.css";
 import { catalysts, catalystById } from "./catalysts";
 import {
@@ -40,10 +41,10 @@ $("#app").innerHTML =
 <label id="concentrationLabel" for="concentration">KI 名目濃度（w/w%）</label><div class="input-row"><input id="concentrationRange" type="range" min="0" max="100" step="0.1"><input id="concentration" type="number" min="0" max="100" step="0.1" aria-label="催化劑名目濃度"></div><p class="hint">溶液 w/w%＝溶質質量 ÷ 溶液總質量 × 100%；懸浮液採固體質量 ÷ 混合物總質量 × 100%。同一百分比不等於同一莫耳濃度或活性。</p>
 <div class="section-title color-title"><span class="step">02</span><h2>調配泡沫顏色</h2><input id="color" type="color" aria-label="泡沫顏色"></div><div class="rgb">${["R", "G", "B"].map((c, i) => `<label>${c}<input id="rgb${i}" type="number" min="0" max="255" aria-label="${c} 色彩值"></label>`).join("")}</div><label class="checkbox"><input id="syncLiquid" type="checkbox" checked>同步液體顏色</label>
 <div class="actions"><button id="start" class="primary">開始模擬 ↗</button><button id="pause" disabled>暫停</button><button id="restart">重新開始</button><button id="stop" disabled>停止本次</button><button id="reset">重設參數</button></div><p class="hint">每次執行 16 秒；完成後自動保存一筆。重新開始會捨棄未完成的本次動畫，歷史保留。</p></aside></div>
-<p id="notice" role="alert"></p><section class="summary"><div><p class="eyebrow">本次觀察</p><h2>本次模擬結果</h2><p id="summary">設定條件後，開始你的第一次觀察。</p></div><div>泡沫體積<strong>未估算</strong></div><div>泡沫質量<strong>未估算</strong></div><p class="hint">尚無校準的氣體捕捉率、泡沫含水量與密度模型，故不換算體積或質量。</p></section>
+<p id="notice" role="alert"></p><section class="summary"><div><p class="eyebrow">本次觀察</p><h2>本次模擬結果</h2><p id="summary">設定條件後，開始你的第一次觀察。</p></div><div>泡沫體積（示意估算）<strong id="volume">尚未模擬</strong></div><div>泡沫質量（示意估算）<strong id="mass">尚未模擬</strong></div><p class="hint">依名目液體量、反應進度與固定泡沫假設換算，尚未校準；不由動畫粒子數推算。舊紀錄保留未估算。</p></section>
 <section class="records"><div class="section-heading"><div><p class="eyebrow">每一次探索，都有跡可循</p><h2>模擬歷史紀錄 <span id="count" class="count">0</span></h2></div><div class="toolbar"><button id="export">匯出模擬紀錄 CSV</button><button id="clear" class="danger">清除全部紀錄</button></div></div><p class="hint">紀錄只保存在此瀏覽器，不會共用或跨裝置同步；清除瀏覽器資料可能遺失。建議匯出 CSV 保存。</p><div id="history"></div></section>
-<section class="comparison"><div class="section-heading"><div><p class="eyebrow">從歷史紀錄自動同步</p><h2>催化劑比較</h2></div><button id="exportGroup">匯出此組 CSV</button></div><div class="filters"><label>H₂O₂ 濃度分組<select id="group"></select></label><label>比較指標<select id="metric"><option value="height">動畫最高高度（場景單位）</option><option value="rate">相對反應速率（未校準）</option><option value="volume">泡沫體積（未估算）</option></select></label></div><p id="fairness" class="info"></p><div id="comparison"></div><h3 id="chartTitle">動畫最高高度比較</h3><div id="chart" role="img" aria-label="依歷史紀錄繪製的比較圖"></div></section>
-<section class="science"><h2>理解模型，才是實驗的開始</h2><p>本網站為電腦視覺化模擬，所有反應速率、泡沫高度、體積及質量均依模型假設產生，不代表真實實驗的精確預測。不同催化劑的模擬結果不可直接視為經實驗證實的催化能力排名。真實化學實驗須由合格教師或專業人員依適當的實驗室安全規範進行。</p><details><summary>查看模型假設與資料依據</summary><p>模型版本 illustrative-1.0。相對速率＝示意係數 × √（催化劑名目百分比 ÷ 10）×（H₂O₂ 百分比 ÷ 30）；百分比數值僅在此轉換比例。反應進度＝1−exp(−相對速率 × 秒數 ÷ 4)。無催化劑或 H₂O₂ 為零時，本模型忽略自發分解。係數並非化學常數。</p><p>固定名目液體體積 100 mL；液面最多下降 7.5 場景單位，僅為進度視覺化。重力、粒子數及噴發速度皆為動畫參數。不同物質相同 w/w% 不代表相同有效活性；金屬鹽與對照物質不具普遍固定排名。</p><p>已知機制參考：<a href="https://edu.rsc.org/experiments/elephants-toothpaste/724.article" target="_blank" rel="noreferrer">RSC Education：Elephant’s toothpaste</a>；此示範不提供本模型的定量校準。本網站不提供高濃度過氧化氫配製、混合或操作步驟。</p></details></section></main><footer>反應觀察室 · 在模擬中探索，在證據中理解。</footer>`;
+<section class="comparison"><div class="section-heading"><div><p class="eyebrow">從歷史紀錄自動同步</p><h2>催化劑比較</h2></div><button id="exportGroup">匯出此組 CSV</button></div><div class="filters"><label>H₂O₂ 濃度分組<select id="group"></select></label><label>比較指標<select id="metric"><option value="height">動畫最高高度（場景單位）</option><option value="rate">相對反應速率（未校準）</option><option value="volume">泡沫體積（mL，示意估算）</option><option value="mass">泡沫質量（g，示意估算）</option></select></label></div><p id="fairness" class="info"></p><div id="comparison"></div><h3 id="chartTitle">動畫最高高度比較</h3><div id="chart" role="img" aria-label="依歷史紀錄繪製的比較圖"></div></section>
+<section class="science"><h2>理解模型，才是實驗的開始</h2><p>本網站為電腦視覺化模擬，所有反應速率、泡沫高度、體積及質量均依模型假設產生，不代表真實實驗的精確預測。不同催化劑的模擬結果不可直接視為經實驗證實的催化能力排名。真實化學實驗須由合格教師或專業人員依適當的實驗室安全規範進行。</p><details><summary>查看模型假設與資料依據</summary><p>模型版本 illustrative-1.1。相對速率＝示意係數 × √（催化劑名目百分比 ÷ 10）×（H₂O₂ 百分比 ÷ 30）；百分比數值僅在此轉換比例。反應進度＝1−exp(−相對速率 × 秒數 ÷ 4)。無催化劑或 H₂O₂ 為零時，本模型忽略自發分解。係數並非化學常數。</p><p>固定名目液體體積 100 mL；液面最多下降 7.5 場景單位，僅為進度視覺化。重力、粒子數及噴發速度皆為動畫參數。不同物質相同 w/w% 不代表相同有效活性；金屬鹽與對照物質不具普遍固定排名。</p><p>${ESTIMATE_NOTE}</p><p>已知機制參考：<a href="https://edu.rsc.org/experiments/elephants-toothpaste/724.article" target="_blank" rel="noreferrer">RSC Education：Elephant’s toothpaste</a>；此示範不提供本模型的定量校準。本網站不提供高濃度過氧化氫配製、混合或操作步驟。</p></details></section></main><footer>反應觀察室 · 在模擬中探索，在證據中理解。</footer>`;
 let parameters = defaults(),
   concentrationState: Record<string, number> = Object.fromEntries(
     catalysts.map((c) => [c.id, 10]),
@@ -149,6 +150,8 @@ $("#stop").addEventListener("click", () => {
   $("#height").textContent = "0";
   $("#particles").textContent = "0";
   $<HTMLProgressElement>("#timeline").value = 0;
+  $("#volume").textContent = "尚未模擬";
+  $("#mass").textContent = "尚未模擬";
   $("#summary").textContent = "本次模擬已停止；歷史紀錄保留。";
 });
 $("#start").addEventListener("click", begin);
@@ -178,7 +181,7 @@ function persist() {
 function table(items: RecordEntry[], history = false) {
   if (!items.length)
     return `<div class="empty">${history ? "尚無模擬紀錄，請先開始一次模擬" : "此 H₂O₂ 濃度尚無模擬資料"}</div>`;
-  return `<div class="table-scroll"><table><thead><tr><th>模擬</th><th>H₂O₂</th><th>催化劑</th><th>名目濃度</th><th>相對速率</th><th>動畫最高高度</th><th>體積／質量</th><th>進度／秒數</th>${history ? "<th>詳細／操作</th>" : ""}</tr></thead><tbody>${items.map((r) => `<tr><td>#${r.number}</td><td>${r.parameters.h2o2}%</td><td><span class="swatch" style="background:rgb(${r.parameters.rgb.join(",")})"></span>${escape(r.catalystName)}<small>${escape(r.formula)}</small></td><td>${r.parameters.concentration} w/w%</td><td>${fmt(r.rate)}</td><td>${fmt(r.height)} <small>場景單位</small></td><td>未估算</td><td>${fmt(r.progress * 100)}%<small>${fmt(r.duration)} 秒</small></td>${history ? `<td><details><summary>詳細參數</summary><p>${escape(new Date(r.date).toLocaleString("zh-TW"))}<br>RGB ${r.parameters.rgb.join(" / ")}<br>液體 ${r.parameters.liquidVolume} mL（名目）<br>動畫粒子 ${r.particles}<br>液面下降 ${fmt(r.liquidDrop)} 場景單位<br>${escape(r.concentrationBasis)}<br>${escape(r.modelVersion)}<br>${escape(r.evidence)}<br>${escape(r.notes)}<br>ID ${escape(r.id)}</p></details><button data-delete="${escape(r.id)}" class="delete">刪除</button></td>` : ""}</tr>`).join("")}</tbody></table></div>`;
+  return `<div class="table-scroll"><table><thead><tr><th>模擬</th><th>H₂O₂</th><th>催化劑</th><th>名目濃度</th><th>相對速率</th><th>動畫最高高度</th><th>估算體積（mL）</th><th>估算質量（g）</th><th>進度／秒數</th>${history ? "<th>詳細／操作</th>" : ""}</tr></thead><tbody>${items.map((r) => `<tr><td>#${r.number}</td><td>${r.parameters.h2o2}%</td><td><span class="swatch" style="background:rgb(${r.parameters.rgb.join(",")})"></span>${escape(r.catalystName)}<small>${escape(r.formula)}</small></td><td>${r.parameters.concentration} w/w%</td><td>${fmt(r.rate)}</td><td>${fmt(r.height)} <small>場景單位</small></td><td>${r.volume === null ? "未估算" : fmt(r.volume)}</td><td>${r.mass === null ? "未估算" : fmt(r.mass)}</td><td>${fmt(r.progress * 100)}%<small>${fmt(r.duration)} 秒</small></td>${history ? `<td><details><summary>詳細參數</summary><p>${escape(new Date(r.date).toLocaleString("zh-TW"))}<br>RGB ${r.parameters.rgb.join(" / ")}<br>液體 ${r.parameters.liquidVolume} mL（名目）<br>動畫粒子 ${r.particles}<br>液面下降 ${fmt(r.liquidDrop)} 場景單位<br>${escape(r.concentrationBasis)}<br>${escape(r.modelVersion)}<br>${escape(r.evidence)}<br>${escape(r.notes)}<br>ID ${escape(r.id)}</p></details><button data-delete="${escape(r.id)}" class="delete">刪除</button></td>` : ""}</tr>`).join("")}</tbody></table></div>`;
 }
 let selectedConcentration = 30;
 function renderRecords() {
@@ -212,24 +215,40 @@ function renderComparison() {
     {
       height: "動畫最高高度比較（場景單位）",
       rate: "相對反應速率比較（未校準）",
-      volume: "泡沫體積（未估算）",
+      volume: "泡沫體積（mL，示意估算）",
+      mass: "泡沫質量（g，示意估算）",
     }[metric];
   if (!items.length) {
     $("#chart").innerHTML = '<p class="empty">此 H₂O₂ 濃度尚無模擬資料</p>';
     return;
   }
-  if (metric === "volume") {
-    $("#chart").textContent = "模型尚未校準，無可繪製的體積估算資料。";
+  const valueOf = (r: RecordEntry) =>
+    metric === "height"
+      ? r.height
+      : metric === "volume"
+        ? r.volume
+        : metric === "mass"
+          ? r.mass
+          : r.rate;
+  const known = items.filter((r) => valueOf(r) !== null);
+  if (!known.length) {
+    $("#chart").textContent =
+      "此組舊紀錄尚無體積／質量估算，請執行新的模擬；舊資料不會自動補算。";
     return;
   }
-  const values = items.map((r) => (metric === "height" ? r.height : r.rate)),
+  const values = known.map((r) => valueOf(r)!),
     max = Math.max(1, ...values);
-  $("#chart").innerHTML = items
-    .map(
-      (r, i) =>
-        `<div class="bar-row"><span>#${r.number} ${escape(r.formula)} · ${r.parameters.concentration}%</span><div class="bar-track"><div class="bar" style="width:${(values[i] / max) * 100}%"></div></div><strong>${fmt(values[i])}</strong></div>`,
-    )
-    .join("");
+  const unit = metric === "volume" ? " mL" : metric === "mass" ? " g" : "";
+  $("#chart").innerHTML =
+    (known.length < items.length
+      ? '<p class="hint">部分舊紀錄未估算，表格保留原值，圖表略過這些空值。</p>'
+      : "") +
+    known
+      .map(
+        (r, i) =>
+          `<div class="bar-row"><span>#${r.number} ${escape(r.formula)} · ${r.parameters.concentration}%</span><div class="bar-track"><div class="bar" style="width:${(values[i] / max) * 100}%"></div></div><strong>${fmt(values[i])}${unit}</strong></div>`,
+      )
+      .join("");
 }
 $("#history").addEventListener("click", (e) => {
   const button = (e.target as HTMLElement).closest<HTMLButtonElement>(
@@ -272,6 +291,9 @@ function animate(now: number) {
     $("#progress").textContent = fmt(simulation.progress * 100) + "%";
     $("#height").textContent = fmt(simulation.maxHeight);
     $("#particles").textContent = String(simulation.emitted);
+    const estimated = estimateFoam(simulation.parameters, simulation.progress);
+    $("#volume").textContent = fmt(estimated.volume) + " mL";
+    $("#mass").textContent = fmt(estimated.mass) + " g";
     $<HTMLProgressElement>("#timeline").value = simulation.elapsed;
     if (simulation.elapsed >= DURATION && !recorded) {
       recorded = true;

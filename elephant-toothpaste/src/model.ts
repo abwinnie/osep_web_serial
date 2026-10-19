@@ -1,5 +1,5 @@
 import { catalystById } from "./catalysts";
-export const MODEL_VERSION = "illustrative-1.0";
+export const MODEL_VERSION = "illustrative-1.1";
 export const DURATION = 16;
 export interface Parameters {
   h2o2: number;
