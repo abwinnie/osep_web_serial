@@ -1,3 +1,5 @@
+> 新增的 3D 大象牙膏模擬應用位於 [`elephant-toothpaste/`](elephant-toothpaste/README.md)，使用獨立 Vite 工具鏈；原 Scratch 專案保留。
+
 # scratch-gui
 #### Scratch GUI is a set of React components that comprise the interface for creating and running Scratch 3.0 projects
 
