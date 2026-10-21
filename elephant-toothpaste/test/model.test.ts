@@ -1,3 +1,4 @@
+import { pillarRadius, pillarSwelling } from "../src/foam-profile";
 import { estimateFoam, ESTIMATE_ASSUMPTIONS } from "../src/estimates";
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -167,4 +168,22 @@ test("體積與質量依化學計量與假設換算，不依賴粒子數，且�
   assert.throws(() =>
     loadHistory({ getItem: () => JSON.stringify([{ ...a, mass: -1 }]) }),
   );
+});
+
+test("直立泡沫輪廓：粗柱、底部外擴、圓頂收合", () => {
+  assert.ok(pillarRadius(0) > pillarRadius(0.5));
+  assert.ok(pillarRadius(0.5) > 0.99);
+  assert.ok(pillarRadius(0.95) > 0.8);
+  assert.ok(pillarRadius(0.99) > 0 && pillarRadius(0.99) < pillarRadius(0.95));
+  assert.equal(pillarRadius(1), 0);
+  for (let i = 0; i <= 100; i++)
+    assert.ok(Number.isFinite(pillarRadius(i / 100)));
+});
+
+test("側邊鼓起連在柱身、左右不對稱，圓頂不形成鉤狀", () => {
+  assert.ok(pillarSwelling(0.63, -1) > 1.4);
+  assert.ok(pillarSwelling(0.63, -1) > pillarSwelling(0.63, 1));
+  assert.ok(pillarSwelling(0.8, 1) > 1.2);
+  assert.ok(pillarSwelling(1, -1) < 1.01);
+  assert.equal(pillarSwelling(0.6, 0), 1);
 });

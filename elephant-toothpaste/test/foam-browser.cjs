@@ -25,7 +25,7 @@ let browser;
   await p.waitForTimeout(6500);
   await p
     .locator(".viewport-card")
-    .screenshot({ path: "/tmp/elephant-cream-column.png" });
+    .screenshot({ path: "/tmp/elephant-pillar-column.png" });
   await p
     .locator("#status")
     .filter({ hasText: "已新增紀錄" })
@@ -44,7 +44,7 @@ let browser;
   await p.waitForTimeout(10000);
   await p
     .locator(".viewport-card")
-    .screenshot({ path: "/tmp/elephant-cream-close.png" });
+    .screenshot({ path: "/tmp/elephant-pillar-close.png" });
   assert.equal(
     await p.evaluate(() =>
       localStorage.getItem("elephant-toothpaste.history.v1"),
@@ -58,7 +58,7 @@ let browser;
   );
   assert.deepEqual(errors, []);
   console.log(
-    "PASS：乳霜表面、奶油黃預設、近看與外觀切換、手機版、零主控台錯誤；紀錄／體積／質量不變，3600 顆與 127.272468 場景單位基準保留。",
+    "PASS：直立粗柱表面、奶油黃預設、近看與外觀切換、手機版、零主控台錯誤；紀錄／體積／質量不變，3600 顆與 127.272468 場景單位基準保留。",
   );
   await browser.close();
 })().catch(async (e) => {
