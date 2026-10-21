@@ -19,6 +19,10 @@ let browser;
   assert.equal(response.status(), 200);
   await p.locator("#scene canvas").waitFor();
   assert.equal(await p.locator("#foamStyle").inputValue(), "cream");
+  await p.locator("#closeView").click();
+  await p
+    .locator(".viewport-card")
+    .screenshot({ path: "/tmp/elephant-reference-flask.png" });
   await p.locator("#referenceColor").click();
   assert.equal(await p.locator("#color").inputValue(), "#f4cc5e");
   await p.locator("#start").click();
@@ -40,17 +44,33 @@ let browser;
   await p.locator("#foamStyle").selectOption("particles");
   await p.waitForTimeout(500);
   await p.locator("#foamStyle").selectOption("cream");
-  await p.locator("#closeView").click();
+  await p
+    .locator(".viewport-card")
+    .screenshot({ path: "/tmp/elephant-collapse-standing.png" });
   await p.waitForTimeout(10000);
   await p
     .locator(".viewport-card")
-    .screenshot({ path: "/tmp/elephant-pillar-close.png" });
+    .screenshot({ path: "/tmp/elephant-collapse-bending.png" });
   assert.equal(
     await p.evaluate(() =>
       localStorage.getItem("elephant-toothpaste.history.v1"),
     ),
     before,
   );
+  await p
+    .locator("#status")
+    .filter({ hasText: "泡沫堆積完成" })
+    .waitFor({ timeout: 180000 });
+  await p
+    .locator(".viewport-card")
+    .screenshot({ path: "/tmp/elephant-collapse-fallen.png" });
+  assert.equal(
+    await p.evaluate(() =>
+      localStorage.getItem("elephant-toothpaste.history.v1"),
+    ),
+    before,
+  );
+  await p.locator("#closeView").click();
   await p.setViewportSize({ width: 390, height: 844 });
   await p.waitForTimeout(1000);
   assert.ok(
@@ -58,7 +78,7 @@ let browser;
   );
   assert.deepEqual(errors, []);
   console.log(
-    "PASS：直立粗柱表面、奶油黃預設、近看與外觀切換、手機版、零主控台錯誤；紀錄／體積／質量不變，3600 顆與 127.272468 場景單位基準保留。",
+    "PASS：直立粗柱、完成後側傾與坍塌、奶油黃預設、近看與外觀切換、手機版、零主控台錯誤；紀錄／體積／質量不變，3600 顆與 127.272468 場景單位基準保留。",
   );
   await browser.close();
 })().catch(async (e) => {

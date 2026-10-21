@@ -1,4 +1,9 @@
-import { pillarRadius, pillarSwelling } from "./foam-profile";
+import {
+  pillarRadius,
+  pillarSwelling,
+  collapseProgress,
+  pillarPoint,
+} from "./foam-profile";
 import * as THREE from "three";
 
 // A continuous render-only skin. It never changes particle physics or recorded data.
@@ -91,17 +96,12 @@ class FoamRibbon extends THREE.Mesh<
         );
         if (upright && u > 0.9) {
           const capT = (u - 0.9) / 0.1;
-          const slope =
-            (-radius * capT) /
-            (Math.max(0.01, Math.sqrt(1 - capT * capT)) *
-              0.1 *
-              Math.max(1, this.points.at(-1)!.y - this.points[0].y));
-          const length = Math.hypot(1, slope);
+          const radial = Math.sqrt(Math.max(0, 1 - capT * capT));
           normals.setXYZ(
             index,
-            (nx - this.tangent.x * slope) / length,
-            (ny - this.tangent.y * slope) / length,
-            (nz - this.tangent.z * slope) / length,
+            nx * radial + this.tangent.x * capT,
+            ny * radial + this.tangent.y * capT,
+            nz * radial + this.tangent.z * capT,
           );
         } else normals.setXYZ(index, nx, ny, nz);
       }
@@ -180,32 +180,41 @@ export class FoamSurface extends THREE.Group {
     if (elapsed < this.lastElapsed || elapsed === 0) this.peak = 0;
     this.lastElapsed = elapsed;
     this.peak = Math.max(this.peak, top);
-    const displayTop =
-      settling > 0
-        ? 39 + (this.peak - 39) * (1 - Math.min(0.25, settling / 300))
-        : top;
     const grow = Math.min(1, elapsed / 2),
-      height = Math.max(41, displayTop - 1.5);
+      height = Math.max(41, (settling > 0 ? this.peak : top) - 1.5);
     this.column.visible = height > 41;
     const h = height - 39;
     const cp = this.column.points;
-    for (let i = 0; i < cp.length; i++)
+    for (let i = 0; i < cp.length; i++) {
+      const u = i / (cp.length - 1),
+        point = pillarPoint(u, h, settling);
       cp[i].set(
-        0.12 * Math.sin(elapsed * 0.35) * Math.sin((i * Math.PI) / 5),
-        39 + (h * i) / (cp.length - 1),
-        0,
+        point.x + 0.12 * Math.sin(elapsed * 0.35) * Math.sin(u * Math.PI),
+        point.y,
+        point.z,
       );
+    }
+    const collapse = collapseProgress(settling, h);
     const soften = 1 - Math.min(0.18, settling / 150);
     this.column.update(8.5 * grow * soften, elapsed * 0.35, true);
     this.collar.visible = landed > 0;
     const build = Math.min(1, landed / 650);
-    this.collar.scale.set(22, Math.max(0.15, build * 4), 20);
+    this.collar.position.x = -collapse * h * 0.18;
+    this.collar.scale.set(
+      22 + collapse * 18,
+      Math.max(0.15, build * (4 + collapse * 4)),
+      20 + collapse * 5,
+    );
     for (let i = 0; i < this.puddles.length; i++) {
       const mesh = this.puddles[i];
       const pile = Math.min(1, landed / 700);
       mesh.visible = pile > 0;
       const angle = i * Math.PI * 0.5;
-      mesh.position.set(Math.cos(angle) * 14, 2, Math.sin(angle) * 14);
+      mesh.position.set(
+        Math.cos(angle) * (14 + collapse * 8) - collapse * h * 0.25,
+        2 + collapse * 2,
+        Math.sin(angle) * 14,
+      );
       mesh.scale.set((10 + (i % 2)) * pile, 3.5 * pile, (10 + (i % 2)) * pile);
     }
   }

@@ -1,4 +1,15 @@
-import { pillarRadius, pillarSwelling } from "../src/foam-profile";
+import {
+  glassRadiusAt,
+  liquidRadiusAt,
+  flaskGeometry,
+  liquidGeometry,
+} from "../src/flask";
+import {
+  pillarRadius,
+  pillarSwelling,
+  collapseProgress,
+  pillarPoint,
+} from "../src/foam-profile";
 import { estimateFoam, ESTIMATE_ASSUMPTIONS } from "../src/estimates";
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -186,4 +197,48 @@ test("側邊鼓起連在柱身、左右不對稱，圓頂不形成鉤狀", () =>
   assert.ok(pillarSwelling(0.8, 1) > 1.2);
   assert.ok(pillarSwelling(1, -1) < 1.01);
   assert.equal(pillarSwelling(0.6, 0), 1);
+});
+
+test("過高泡沫完成後漸進側傾、頂部下垂及落地；矮柱不強制坍塌", () => {
+  const height = 88;
+  assert.equal(collapseProgress(0, height), 0);
+  assert.equal(collapseProgress(2, height), 0);
+  assert.ok(collapseProgress(7, height) > 0 && collapseProgress(7, height) < 1);
+  assert.equal(collapseProgress(12, height), 1);
+  assert.equal(collapseProgress(30, 20), 0);
+  const start = pillarPoint(1, height, 0),
+    bend = pillarPoint(1, height, 12),
+    end = pillarPoint(1, height, 24);
+  assert.equal(start.x, 0);
+  assert.equal(start.y, 127);
+  assert.ok(bend.x < -40 && bend.y < start.y);
+  assert.ok(end.y <= 4.001 && end.y >= 0);
+  assert.deepEqual(pillarPoint(0, height, 24), { x: 0, y: 39, z: 0 });
+  let previous = 0;
+  for (let t = 0; t <= 30; t += 0.1) {
+    const p = pillarPoint(1, height, t);
+    assert.ok(Number.isFinite(p.x) && Number.isFinite(p.y));
+    assert.ok(Math.abs(p.x - previous) < 2);
+    previous = p.x;
+  }
+});
+
+test("修長開口錐形瓶與液面：液體保持瓶底固定且不穿出瓶壁", () => {
+  assert.ok(glassRadiusAt(35) < 4);
+  assert.ok(glassRadiusAt(5) > 13);
+  assert.ok(glassRadiusAt(20) < glassRadiusAt(10));
+  for (let y = 1.5; y <= 12.5; y += 0.1)
+    assert.ok(liquidRadiusAt(y) < glassRadiusAt(y));
+  const glass = flaskGeometry();
+  glass.computeBoundingBox();
+  assert.ok(glass.boundingBox!.max.y >= 40);
+  assert.equal(glass.boundingBox!.min.y,0);
+  glass.dispose();
+  for (const level of [5, 8, 12.5]) {
+    const g = liquidGeometry(level);
+    g.computeBoundingBox();
+    assert.ok(Math.abs(g.boundingBox!.min.y - 1.5) < 1e-5);
+    assert.ok(Math.abs(g.boundingBox!.max.y - level) < 1e-5);
+    g.dispose();
+  }
 });

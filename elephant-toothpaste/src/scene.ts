@@ -1,3 +1,5 @@
+import { flaskGeometry, liquidGeometry, flaskMarkings } from "./flask";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { FoamSurface } from "./foam-surface";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
@@ -12,6 +14,8 @@ export class LabScene {
   readonly scene = new THREE.Scene();
   readonly camera = new THREE.PerspectiveCamera(42, 1, 0.1, 1500);
   readonly controls: OrbitControls;
+  private environmentTarget: THREE.WebGLRenderTarget;
+  private markingsTexture: THREE.Texture;
   private foam: THREE.InstancedMesh;
   private surface = new FoamSurface();
   private foamStyle: "cream" | "particles" = "cream";
@@ -32,6 +36,13 @@ export class LabScene {
     this.renderer.shadowMap.autoUpdate = false;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.setClearColor(0xeaf0ee);
+    const pmrem = new THREE.PMREMGenerator(this.renderer),
+      room = new RoomEnvironment();
+    this.environmentTarget = pmrem.fromScene(room, 0.04);
+    this.scene.environment = this.environmentTarget.texture;
+    this.scene.environmentIntensity = 0.45;
+    room.dispose();
+    pmrem.dispose();
     host.append(this.renderer.domElement);
     this.renderer.domElement.setAttribute(
       "aria-label",
@@ -72,32 +83,15 @@ export class LabScene {
     grid.position.y = 0.03;
     this.scene.add(grid);
     // Revolved closed glass wall profile: flat base, broad body, shoulder and open neck.
-    const profile = [
-      [0, 0.6],
-      [15, 0.6],
-      [16, 1.2],
-      [15.5, 5],
-      [10, 24],
-      [4, 31],
-      [4, 39],
-      [4.7, 39.5],
-      [4.7, 40.1],
-      [3.3, 40.1],
-      [3.3, 31],
-      [9.3, 23.5],
-      [14.6, 5],
-      [14.9, 1.5],
-      [0, 1.5],
-    ].map(([r, y]) => new THREE.Vector2(r, y));
     const glass = new THREE.Mesh(
-      new THREE.LatheGeometry(profile, 64),
+      flaskGeometry(),
       new THREE.MeshPhysicalMaterial({
-        color: 0xd4f5f0,
+        color: 0xf1faf8,
         transparent: true,
-        opacity: 0.26,
+        opacity: 0.62,
         roughness: 0.08,
         metalness: 0,
-        transmission: 0.65,
+        transmission: 0.88,
         thickness: 0.8,
         ior: 1.45,
         side: THREE.DoubleSide,
@@ -106,8 +100,11 @@ export class LabScene {
     );
     glass.renderOrder = 3;
     this.scene.add(glass);
+    const markings = flaskMarkings();
+    this.markingsTexture = markings.texture;
+    this.scene.add(markings.mesh);
     const rim = new THREE.Mesh(
-      new THREE.TorusGeometry(4, 0.45, 10, 48),
+      new THREE.TorusGeometry(3.65, 0.4, 12, 64),
       new THREE.MeshPhysicalMaterial({
         color: 0xe5fffb,
         transparent: true,
@@ -120,7 +117,7 @@ export class LabScene {
     this.scene.add(rim);
     // Geometry is rebuilt only when the top level changes; bottom remains at y=1.5.
     this.liquid = new THREE.Mesh(
-      new THREE.CylinderGeometry(11.4, 14.8, 11, 48),
+      liquidGeometry(12.5),
       new THREE.MeshStandardMaterial({
         color: 0x41cca9,
         transparent: true,
@@ -128,7 +125,7 @@ export class LabScene {
         roughness: 0.25,
       }),
     );
-    this.liquid.position.y = 7;
+    this.liquid.position.y = 0;
     this.scene.add(this.liquid);
     this.foam = new THREE.InstancedMesh(
       new THREE.IcosahedronGeometry(1, 1),
@@ -169,6 +166,12 @@ export class LabScene {
   private lastLevel = -1;
   private lastSimulation: FoamSimulation | null = null;
   private settling = 0;
+  get foamStage() {
+    if (this.settling >= 24) return "泡沫堆積完成";
+    if ((this.lastSimulation?.maxHeight ?? 0) - 39 <= 34) return "泡沫緩慢沉降";
+    if (this.settling < 2) return "泡沫直立觀察";
+    return this.settling < 12 ? "泡沫側傾中" : "泡沫坍塌中";
+  }
   update(sim: FoamSimulation | null, p: Parameters, dt = 0) {
     if (sim !== this.lastSimulation) {
       this.lastSimulation = sim;
@@ -198,15 +201,7 @@ export class LabScene {
     if (Math.abs(level - this.lastLevel) > 0.06) {
       this.lastLevel = level;
       this.liquid.geometry.dispose();
-      const height = level - 1.5;
-      const radius = 14.8 - (level - 1.5) * 0.29;
-      this.liquid.geometry = new THREE.CylinderGeometry(
-        radius,
-        14.8,
-        height,
-        48,
-      );
-      this.liquid.position.y = 1.5 + height / 2;
+      this.liquid.geometry = liquidGeometry(level);
     }
     const particles = sim?.particles ?? [];
     this.foam.count = particles.length;
@@ -272,6 +267,8 @@ export class LabScene {
           m.dispose();
       }
     });
+    this.markingsTexture.dispose();
+    this.environmentTarget.dispose();
     this.renderer.dispose();
     this.renderer.domElement.remove();
   }
