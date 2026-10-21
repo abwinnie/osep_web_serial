@@ -1,3 +1,4 @@
+import { FoamSurface } from "./foam-surface";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import {
@@ -12,6 +13,8 @@ export class LabScene {
   readonly camera = new THREE.PerspectiveCamera(42, 1, 0.1, 1500);
   readonly controls: OrbitControls;
   private foam: THREE.InstancedMesh;
+  private surface = new FoamSurface();
+  private foamStyle: "cream" | "particles" = "cream";
   private liquid: THREE.Mesh;
   private overflow: THREE.Mesh;
   private matrix = new THREE.Object3D();
@@ -138,6 +141,7 @@ export class LabScene {
     this.foam.receiveShadow = true;
     this.foam.frustumCulled = false;
     this.scene.add(this.foam);
+    this.scene.add(this.surface);
     this.overflow = new THREE.Mesh(
       new THREE.TorusGeometry(4, 1.6, 12, 32),
       this.foamMaterial,
@@ -153,6 +157,13 @@ export class LabScene {
       this.renderer.setSize(width, height);
     });
     this.resize.observe(host);
+  }
+  setFoamStyle(style: "cream" | "particles") {
+    this.foamStyle = style;
+  }
+  focusBottle() {
+    this.controls.target.set(-6, 25, 0);
+    this.camera.position.set(72, 65, 100);
   }
   private renderFrame = 0;
   private lastLevel = -1;
@@ -199,6 +210,9 @@ export class LabScene {
     }
     const particles = sim?.particles ?? [];
     this.foam.count = particles.length;
+    this.foam.visible = this.foamStyle === "particles";
+    let currentTop = 0,
+      landed = 0;
     for (let i = 0; i < particles.length; i++) {
       const p = particles[i];
       const t = this.settling;
@@ -221,7 +235,11 @@ export class LabScene {
         z *= spread;
       }
       const decay = 1 - Math.min(0.35, Math.max(0, t - 30) / 180);
-      const radius = p.radius * decay;
+      currentTop = Math.max(currentTop, y + p.radius);
+      if (p.landed) landed++;
+      const hiddenCore =
+        this.foamStyle === "cream" && !p.landed && Math.hypot(x, z) < 6;
+      const radius = p.radius * decay * (hiddenCore ? 0.48 : 1);
       this.matrix.position.set(x, y, z);
       this.matrix.scale.set(radius, radius * (p.landed ? 0.85 : 1.15), radius);
       this.matrix.updateMatrix();
@@ -229,6 +247,14 @@ export class LabScene {
     }
     this.foam.instanceMatrix.needsUpdate = true;
     this.overflow.visible = particles.length > 0;
+    this.surface.update(
+      particles.length ? sim!.elapsed : 0,
+      currentTop,
+      this.settling,
+      color,
+      landed,
+    );
+    this.surface.visible = particles.length > 0 && this.foamStyle === "cream";
     this.controls.update();
     if (this.renderFrame++ % 8 === 0)
       this.renderer.shadowMap.needsUpdate = true;
@@ -237,6 +263,8 @@ export class LabScene {
   dispose() {
     this.resize.disconnect();
     this.controls.dispose();
+    this.surface.dispose();
+    this.scene.remove(this.surface);
     this.scene.traverse((o) => {
       if (o instanceof THREE.Mesh) {
         o.geometry.dispose();

@@ -32,6 +32,7 @@ PLAYWRIGHT_MODULE=/path/to/playwright CHROMIUM_PATH=/usr/bin/chromium node test/
 
 - `src/catalysts.ts`：十種物質、物態／濃度基準、證據及限制。
 - `src/model.ts`：示意速率、進度與獨立固定步進粒子模型。
+- `src/foam-surface.ts`：細密乳霜外觀、連續高柱與瓶口彎折溢流；固定拓撲與可重用頂點緩衝，不改變物理或紀錄。
 - `src/scene.ts`：場景、開口玻璃錐形瓶、固定底部液面、實例化泡沫與 OrbitControls。
 - `src/estimates.ts`：化學計量及未校準的體積／質量示意假設。
 - `src/history.ts`：不可變快照、本機資料驗證、去重及分組。
@@ -61,10 +62,18 @@ PLAYWRIGHT_MODULE=/path/to/playwright CHROMIUM_PATH=/usr/bin/chromium node test/
 3. 執行 `.github/workflows/elephant-pages.yml`：Node 22、`npm ci`、測試、型別檢查與建置，保留既有 `app` 靜態網站於網站根目錄，再將 `elephant-toothpaste/dist` 放入 `/elephant-toothpaste/` 子目錄後部署。
 4. 等工作流程成功後，以實際輸出的 Pages 網址驗證頁面、資源回應、重新整理與保存／匯出功能。
 
-**牙膏應用的公開路徑為 `https://<帳號>.github.io/<儲存庫>/elephant-toothpaste/`。** 原 Scratch 原始碼與已追蹤的 `app` 保留，部署產物亦保留原 `app` 在根目錄。尚未推送、觸發部署或確認公開網址，不能宣稱已上線。
+**牙膏應用的公開路徑為 `https://<帳號>.github.io/<儲存庫>/elephant-toothpaste/`。** 原 Scratch 原始碼與已追蹤的 `app` 保留，部署產物亦保留原 `app` 在根目錄。先前版本已由 GitHub Actions 成功發布。每次更新仍須確認對應工作流程成功；本機建置不代表新版已上線。
 
 ## 科學與安全聲明
 
 本網站為電腦視覺化模擬，所有反應速率、泡沫高度、體積及質量均依模型假設產生，不代表真實實驗的精確預測。不同催化劑的模擬結果不可直接視為經實驗證實的催化能力排名。真實化學實驗須由合格教師或專業人員依適當的實驗室安全規範進行。
 
 本網站不提供真實高濃度過氧化氫的配製、混合或操作步驟。機制參考 RSC Education 的 Elephant’s toothpaste，並未引用其操作量或視為模型校準資料；酵母與異相催化為一般機制說明，模型係數完全屬示意假設。
+
+## 參考圖乳霜泡沫外觀
+
+預設「細密乳霜泡沫」使用連續曲面及微泡凹凸紋理，保留高柱，並增加瓶口彎折、沿瓶身溢流與連續底部堆積。可按「參考圖奶油黃」同步設定 RGB，再用「近看瓶口與溢流」觀察。外觀選單仍提供「原始粒子觀察」。粒子模擬與統計持續運算，但乳霜模式以連續表面包覆呈現，不把每顆模擬粒子畫成獨立球體；畫面曲面不是額外的化學體積或質量。
+
+此改動僅影響外觀，不修改反應參數、既有歷史或估算模型。網格頂點緩衝重用，紋理及幾何體在離開頁面時清理。乳霜流動與彎折為視覺近似，未實作流體力學或真實泡膜求解器，不宣稱與照片完全相同。
+
+瀏覽器外觀回歸：`PLAYWRIGHT_MODULE=/path/to/playwright TEST_URL=<測試網址> node test/foam-browser.cjs`。
