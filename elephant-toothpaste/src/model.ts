@@ -44,7 +44,7 @@ export function visualParameters(p: Parameters) {
     foamParticleLimit: 6000,
     eruptionVelocity: Math.min(65, 40 * Math.sqrt(effect)),
     foamSpread: 0.65,
-    foamLifetime: 35,
+    foamLifetime: null, // Retain foam until the user explicitly starts/stops a run.
     foamAccumulationRate: 0.8,
     foamExpansion: 1.2,
     foamOpacity: 0.98,

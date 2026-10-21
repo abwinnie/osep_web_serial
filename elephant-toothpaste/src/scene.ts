@@ -1,4 +1,9 @@
-import { flaskGeometry, liquidGeometry, flaskMarkings } from "./flask";
+import {
+  cylinderGeometry,
+  liquidGeometry,
+  cylinderMarkings,
+  liquidLevelForVolume,
+} from "./cylinder";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { FoamSurface } from "./foam-surface";
 import * as THREE from "three";
@@ -46,14 +51,14 @@ export class LabScene {
     host.append(this.renderer.domElement);
     this.renderer.domElement.setAttribute(
       "aria-label",
-      "可拖曳旋轉與縮放的三維錐形瓶及泡沫場景",
+      "可拖曳旋轉與縮放的三維 100 mL 量筒及泡沫場景",
     );
     this.camera.position.set(135, 150, 180);
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.target.set(0, 49, 0);
     this.controls.enableDamping = true;
     this.controls.maxPolarAngle = Math.PI * 0.49;
-    this.controls.minDistance = 85;
+    this.controls.minDistance = 45;
     this.controls.maxDistance = 420;
     this.scene.add(new THREE.HemisphereLight(0xffffff, 0x869990, 2.4));
     const sun = new THREE.DirectionalLight(0xffffff, 3);
@@ -82,9 +87,9 @@ export class LabScene {
     const grid = new THREE.GridHelper(250, 20, 0x9eafaa, 0xbac6c1);
     grid.position.y = 0.03;
     this.scene.add(grid);
-    // Revolved closed glass wall profile: flat base, broad body, shoulder and open neck.
+    // Straight 100 mL graduated cylinder with open mouth and a wide stable foot.
     const glass = new THREE.Mesh(
-      flaskGeometry(),
+      cylinderGeometry(),
       new THREE.MeshPhysicalMaterial({
         color: 0xf1faf8,
         transparent: true,
@@ -100,7 +105,7 @@ export class LabScene {
     );
     glass.renderOrder = 3;
     this.scene.add(glass);
-    const markings = flaskMarkings();
+    const markings = cylinderMarkings();
     this.markingsTexture = markings.texture;
     this.scene.add(markings.mesh);
     const rim = new THREE.Mesh(
@@ -115,9 +120,9 @@ export class LabScene {
     rim.rotation.x = Math.PI / 2;
     rim.position.y = 40;
     this.scene.add(rim);
-    // Geometry is rebuilt only when the top level changes; bottom remains at y=1.5.
+    // Geometry is rebuilt only when the top level changes; bottom remains at y=2.
     this.liquid = new THREE.Mesh(
-      liquidGeometry(12.5),
+      liquidGeometry(liquidLevelForVolume(100)),
       new THREE.MeshStandardMaterial({
         color: 0x41cca9,
         transparent: true,
@@ -159,8 +164,8 @@ export class LabScene {
     this.foamStyle = style;
   }
   focusBottle() {
-    this.controls.target.set(-6, 25, 0);
-    this.camera.position.set(72, 65, 100);
+    this.controls.target.set(0, 21, 0);
+    this.camera.position.set(36, 34, 54);
   }
   private renderFrame = 0;
   private lastLevel = -1;
@@ -197,7 +202,9 @@ export class LabScene {
     (this.liquid.material as THREE.MeshStandardMaterial).color.copy(
       p.syncLiquid ? color : new THREE.Color(0x79bfee),
     );
-    const level = 12.5 - (sim?.liquidDrop ?? 0);
+    const level =
+      liquidLevelForVolume(sim?.parameters.liquidVolume ?? p.liquidVolume) -
+      (sim?.liquidDrop ?? 0);
     if (Math.abs(level - this.lastLevel) > 0.06) {
       this.lastLevel = level;
       this.liquid.geometry.dispose();
@@ -209,7 +216,7 @@ export class LabScene {
     let currentTop = 0;
     for (let i = 0; i < particles.length; i++) {
       const p = particles[i];
-      const t = this.settling;
+      const t = Math.min(this.settling, 24);
       let x = p.x,
         z = p.z,
         y = p.y;
@@ -228,11 +235,10 @@ export class LabScene {
         x *= spread;
         z *= spread;
       }
-      const decay = 1 - Math.min(0.35, Math.max(0, t - 30) / 180);
       currentTop = Math.max(currentTop, y + p.radius);
       const hiddenCore =
         this.foamStyle === "cream" && !p.landed && Math.hypot(x, z) < 6;
-      const radius = p.radius * decay * (hiddenCore ? 0.48 : 1);
+      const radius = p.radius * (hiddenCore ? 0.48 : 1);
       this.matrix.position.set(x, y, z);
       this.matrix.scale.set(radius, radius * (p.landed ? 0.85 : 1.15), radius);
       this.matrix.updateMatrix();

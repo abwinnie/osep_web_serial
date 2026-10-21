@@ -1,11 +1,13 @@
 import { FoamRibbon } from "../src/foam-surface";
 import { MeshStandardMaterial } from "three";
 import {
-  glassRadiusAt,
-  liquidRadiusAt,
-  flaskGeometry,
+  CYLINDER_CAPACITY_ML,
+  CYLINDER_INNER_RADIUS,
+  CYLINDER_OUTER_RADIUS,
+  cylinderGeometry,
   liquidGeometry,
-} from "../src/flask";
+  liquidLevelForVolume,
+} from "../src/cylinder";
 import {
   pillarRadius,
   pillarSwelling,
@@ -215,7 +217,7 @@ test("過高泡沫完成後漸進側傾、頂部下垂及落地；矮柱不強�
   assert.equal(start.x, 0);
   assert.equal(start.y, 127);
   assert.ok(bend.x < -20 && bend.y < start.y);
-  assert.ok(end.y <= 4.001 && end.y >= 0);
+  assert.ok(end.y <= 5.001 && end.y >= 0);
   assert.deepEqual(pillarPoint(0, height, 6), { x: 0, y: 39, z: 0 });
   let previous = 0;
   for (let t = 0; t <= 30; t += 0.1) {
@@ -226,21 +228,22 @@ test("過高泡沫完成後漸進側傾、頂部下垂及落地；矮柱不強�
   }
 });
 
-test("修長開口錐形瓶與液面：液體保持瓶底固定且不穿出瓶壁", () => {
-  assert.ok(glassRadiusAt(35) < 4);
-  assert.ok(glassRadiusAt(5) > 13);
-  assert.ok(glassRadiusAt(20) < glassRadiusAt(10));
-  for (let y = 1.5; y <= 12.5; y += 0.1)
-    assert.ok(liquidRadiusAt(y) < glassRadiusAt(y));
-  const glass = flaskGeometry();
+test("100 mL 量筒：直筒、平底底座、容量刻度與固定液底", () => {
+  assert.equal(CYLINDER_CAPACITY_ML, 100);
+  assert.ok(CYLINDER_INNER_RADIUS < CYLINDER_OUTER_RADIUS);
+  const glass = cylinderGeometry();
   glass.computeBoundingBox();
-  assert.ok(glass.boundingBox!.max.y >= 40);
   assert.equal(glass.boundingBox!.min.y, 0);
+  assert.ok(glass.boundingBox!.max.y >= 40);
   glass.dispose();
-  for (const level of [5, 8, 12.5]) {
-    const g = liquidGeometry(level);
+  assert.equal(liquidLevelForVolume(0), 2);
+  assert.equal(liquidLevelForVolume(100), 35);
+  assert.equal(liquidLevelForVolume(50), (2 + 35) / 2);
+  for (const volume of [10, 50, 100]) {
+    const level = liquidLevelForVolume(volume),
+      g = liquidGeometry(level);
     g.computeBoundingBox();
-    assert.ok(Math.abs(g.boundingBox!.min.y - 1.5) < 1e-5);
+    assert.equal(g.boundingBox!.min.y, 2);
     assert.ok(Math.abs(g.boundingBox!.max.y - level) < 1e-5);
     g.dispose();
   }
@@ -271,7 +274,7 @@ test("坍塌由最高點向下傳遞，同一批泡沫落地，底部不能提�
       assert.ok(point.y >= 2);
       previous = point.y;
     }
-    assert.ok(pillarPoint(u, h, 24).y <= 3.5);
+    assert.ok(pillarPoint(u, h, 24).y <= 14.001);
   }
 });
 
@@ -306,6 +309,34 @@ test("實際曲面由同一頂點緩衝下落：前期底部不冒泡，落地�
     mesh.geometry.boundingBox!.max.z - mesh.geometry.boundingBox!.min.z >
       initialWidth,
   );
+  mesh.geometry.dispose();
+  material.dispose();
+});
+
+test("坍塌後原泡沫長時間保留：不縮小、不換頂點或消失", () => {
+  assert.equal(visualParameters(defaults()).foamLifetime, null);
+  const material = new MeshStandardMaterial(),
+    mesh = new FoamRibbon(17, material),
+    h = 88;
+  const update = (time: number) => {
+    mesh.points.forEach((point, i) => {
+      const p = pillarPoint(i / 16, h, time);
+      point.set(p.x, p.y, p.z);
+    });
+    mesh.update(8.5, 16 * 0.35, true, localCollapseProgress(time, h, 0), h);
+  };
+  update(24);
+  const settled = Array.from(mesh.geometry.getAttribute("position").array);
+  mesh.geometry.computeBoundingBox();
+  assert.ok(mesh.geometry.boundingBox!.max.y > 10);
+  for (const time of [60, 300, 3600]) {
+    update(time);
+    assert.deepEqual(
+      Array.from(mesh.geometry.getAttribute("position").array),
+      settled,
+    );
+    assert.ok(mesh.visible);
+  }
   mesh.geometry.dispose();
   material.dispose();
 });

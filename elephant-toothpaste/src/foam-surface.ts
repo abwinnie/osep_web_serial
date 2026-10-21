@@ -211,9 +211,8 @@ export class FoamSurface extends THREE.Group {
         point.z,
       );
     }
-    const soften = 1 - Math.min(0.18, settling / 150);
     this.column.update(
-      8.5 * grow * soften,
+      8.5 * grow,
       elapsed * 0.35,
       true,
       localCollapseProgress(settling, h, 0),

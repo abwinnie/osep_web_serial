@@ -40,8 +40,8 @@ export function pillarPoint(u: number, height: number, seconds: number) {
   const progress = localCollapseProgress(seconds, height, section);
   const initialY = 39 + height * section;
   return {
-    x: -(18 + 12 * section) * progress || 0,
-    y: initialY + (2 + 1.5 * section - initialY) * progress,
+    x: -(10 + 17 * section) * progress || 0,
+    y: initialY + (5 + 9 * Math.sin(Math.PI * section) - initialY) * progress,
     z: 3 * section * progress,
   };
 }
