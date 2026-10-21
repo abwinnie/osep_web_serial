@@ -206,8 +206,7 @@ export class LabScene {
     const particles = sim?.particles ?? [];
     this.foam.count = particles.length;
     this.foam.visible = this.foamStyle === "particles";
-    let currentTop = 0,
-      landed = 0;
+    let currentTop = 0;
     for (let i = 0; i < particles.length; i++) {
       const p = particles[i];
       const t = this.settling;
@@ -231,7 +230,6 @@ export class LabScene {
       }
       const decay = 1 - Math.min(0.35, Math.max(0, t - 30) / 180);
       currentTop = Math.max(currentTop, y + p.radius);
-      if (p.landed) landed++;
       const hiddenCore =
         this.foamStyle === "cream" && !p.landed && Math.hypot(x, z) < 6;
       const radius = p.radius * decay * (hiddenCore ? 0.48 : 1);
@@ -247,7 +245,6 @@ export class LabScene {
       currentTop,
       this.settling,
       color,
-      landed,
     );
     this.surface.visible = particles.length > 0 && this.foamStyle === "cream";
     this.controls.update();

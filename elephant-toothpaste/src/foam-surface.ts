@@ -1,13 +1,13 @@
 import {
   pillarRadius,
   pillarSwelling,
-  collapseProgress,
+  localCollapseProgress,
   pillarPoint,
 } from "./foam-profile";
 import * as THREE from "three";
 
 // A continuous render-only skin. It never changes particle physics or recorded data.
-class FoamRibbon extends THREE.Mesh<
+export class FoamRibbon extends THREE.Mesh<
   THREE.BufferGeometry,
   THREE.MeshStandardMaterial
 > {
@@ -18,6 +18,8 @@ class FoamRibbon extends THREE.Mesh<
   private normal = new THREE.Vector3();
   private binormal = new THREE.Vector3();
   private reference = new THREE.Vector3(0, 0, 1);
+  private ahead = new THREE.Vector3();
+  private behind = new THREE.Vector3();
   private readonly rings = 72;
   private readonly sides = 18;
   constructor(pointCount: number, material: THREE.MeshStandardMaterial) {
@@ -57,7 +59,13 @@ class FoamRibbon extends THREE.Mesh<
     this.castShadow = true;
     this.receiveShadow = true;
   }
-  update(radius: number, phase: number, upright = false) {
+  update(
+    radius: number,
+    phase: number,
+    upright = false,
+    baseClosure = 0,
+    originalHeight = 0,
+  ) {
     const positions = this.geometry.getAttribute(
       "position",
     ) as THREE.BufferAttribute;
@@ -73,12 +81,37 @@ class FoamRibbon extends THREE.Mesh<
       const end = upright
         ? pillarRadius(u)
         : Math.min(1, Math.sqrt(Math.max(0, (1 - u) * 18)));
+      const baseCap =
+        u < 0.1
+          ? 1 -
+            baseClosure *
+              (1 - Math.sqrt(Math.max(0, 1 - ((0.1 - u) / 0.1) ** 2)))
+          : 1;
       const r =
         radius *
         (1 +
           (upright ? 0.012 : 0.075) * Math.sin(u * 19 - phase) +
           (upright ? 0.008 : 0.035) * Math.sin(u * 43 + phase)) *
-        end;
+        end *
+        baseCap;
+      // Only material that actually reaches the floor can flatten and spread.
+      const arrival = Math.max(0, Math.min(1, (12 - this.center.y) / 8));
+      const du = Math.min(1, u + 0.003) - Math.max(0, u - 0.003);
+      this.curve.getPoint(Math.min(1, u + 0.003), this.ahead);
+      this.curve.getPoint(Math.max(0, u - 0.003), this.behind);
+      const stretch =
+        originalHeight > 0
+          ? Math.min(
+              8,
+              Math.max(
+                1,
+                (originalHeight * du) /
+                  Math.max(0.001, this.ahead.distanceTo(this.behind)),
+              ),
+            )
+          : 1;
+      const flatten = 1 - 0.6 * arrival,
+        spread = Math.sqrt((1 + (stretch - 1) * arrival) / flatten);
       for (let j = 0; j <= this.sides; j++) {
         const a = (j / this.sides) * Math.PI * 2,
           c = Math.cos(a),
@@ -90,9 +123,9 @@ class FoamRibbon extends THREE.Mesh<
         const index = i * (this.sides + 1) + j;
         positions.setXYZ(
           index,
-          this.center.x + nx * localRadius,
-          this.center.y + ny * localRadius,
-          this.center.z + nz * localRadius,
+          this.center.x + nx * localRadius * spread,
+          Math.max(0.08, this.center.y + ny * localRadius * spread * flatten),
+          this.center.z + nz * localRadius * spread,
         );
         if (upright && u > 0.9) {
           const capT = (u - 0.9) / 0.1;
@@ -102,6 +135,15 @@ class FoamRibbon extends THREE.Mesh<
             nx * radial + this.tangent.x * capT,
             ny * radial + this.tangent.y * capT,
             nz * radial + this.tangent.z * capT,
+          );
+        } else if (upright && u < 0.1 && baseClosure > 0) {
+          const capT = ((0.1 - u) / 0.1) * baseClosure,
+            radial = Math.sqrt(Math.max(0, 1 - capT * capT));
+          normals.setXYZ(
+            index,
+            nx * radial - this.tangent.x * capT,
+            ny * radial - this.tangent.y * capT,
+            nz * radial - this.tangent.z * capT,
           );
         } else normals.setXYZ(index, nx, ny, nz);
       }
@@ -114,8 +156,6 @@ export class FoamSurface extends THREE.Group {
   readonly material: THREE.MeshStandardMaterial;
   readonly texture: THREE.CanvasTexture;
   private column: FoamRibbon;
-  private puddles: THREE.Mesh[] = [];
-  private collar: THREE.Mesh;
   private peak = 0;
   private lastElapsed = 0;
   constructor() {
@@ -147,34 +187,11 @@ export class FoamSurface extends THREE.Group {
       bumpMap: this.texture,
       bumpScale: 0.24,
     });
-    this.column = new FoamRibbon(6, this.material);
+    this.column = new FoamRibbon(17, this.material);
     this.add(this.column);
-    const geometry = new THREE.SphereGeometry(1, 28, 18);
-    for (let i = 0; i < 4; i++) {
-      const mesh = new THREE.Mesh(geometry, this.material);
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-      this.puddles.push(mesh);
-      this.add(mesh);
-    }
-    this.collar = new THREE.Mesh(
-      new THREE.SphereGeometry(1, 36, 20),
-      this.material,
-    );
-
-    this.collar.position.set(0, 2, 0);
-    this.collar.castShadow = true;
-    this.collar.receiveShadow = true;
-    this.add(this.collar);
     this.visible = false;
   }
-  update(
-    elapsed: number,
-    top: number,
-    settling: number,
-    color: THREE.Color,
-    landed: number,
-  ) {
+  update(elapsed: number, top: number, settling: number, color: THREE.Color) {
     this.visible = elapsed > 0;
     this.material.color.copy(color).lerp(new THREE.Color(0xffffff), 0.12);
     if (elapsed < this.lastElapsed || elapsed === 0) this.peak = 0;
@@ -194,34 +211,17 @@ export class FoamSurface extends THREE.Group {
         point.z,
       );
     }
-    const collapse = collapseProgress(settling, h);
     const soften = 1 - Math.min(0.18, settling / 150);
-    this.column.update(8.5 * grow * soften, elapsed * 0.35, true);
-    this.collar.visible = landed > 0;
-    const build = Math.min(1, landed / 650);
-    this.collar.position.x = -collapse * h * 0.18;
-    this.collar.scale.set(
-      22 + collapse * 18,
-      Math.max(0.15, build * (4 + collapse * 4)),
-      20 + collapse * 5,
+    this.column.update(
+      8.5 * grow * soften,
+      elapsed * 0.35,
+      true,
+      localCollapseProgress(settling, h, 0),
+      h,
     );
-    for (let i = 0; i < this.puddles.length; i++) {
-      const mesh = this.puddles[i];
-      const pile = Math.min(1, landed / 700);
-      mesh.visible = pile > 0;
-      const angle = i * Math.PI * 0.5;
-      mesh.position.set(
-        Math.cos(angle) * (14 + collapse * 8) - collapse * h * 0.25,
-        2 + collapse * 2,
-        Math.sin(angle) * 14,
-      );
-      mesh.scale.set((10 + (i % 2)) * pile, 3.5 * pile, (10 + (i % 2)) * pile);
-    }
   }
   dispose() {
     this.column.geometry.dispose();
-    this.puddles[0].geometry.dispose();
-    this.collar.geometry.dispose();
     this.material.dispose();
     this.texture.dispose();
   }

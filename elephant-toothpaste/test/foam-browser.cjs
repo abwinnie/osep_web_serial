@@ -47,7 +47,11 @@ let browser;
   await p
     .locator(".viewport-card")
     .screenshot({ path: "/tmp/elephant-collapse-standing.png" });
-  await p.waitForTimeout(10000);
+  await p.waitForTimeout(3500);
+  await p
+    .locator(".viewport-card")
+    .screenshot({ path: "/tmp/elephant-topdown-onset.png" });
+  await p.waitForTimeout(6500);
   await p
     .locator(".viewport-card")
     .screenshot({ path: "/tmp/elephant-collapse-bending.png" });
@@ -78,7 +82,7 @@ let browser;
   );
   assert.deepEqual(errors, []);
   console.log(
-    "PASS：直立粗柱、完成後側傾與坍塌、奶油黃預設、近看與外觀切換、手機版、零主控台錯誤；紀錄／體積／質量不變，3600 顆與 127.272468 場景單位基準保留。",
+    "PASS：直立粗柱、頂端先坍塌再逐段落地、奶油黃預設、近看與外觀切換、手機版、零主控台錯誤；紀錄／體積／質量不變，3600 顆與 127.272468 場景單位基準保留。",
   );
   await browser.close();
 })().catch(async (e) => {

@@ -25,17 +25,23 @@ export function collapseProgress(seconds: number, height: number) {
   const slenderness = Math.max(0, Math.min(1, (height / 17 - 2) / 2));
   return smooth((seconds - 2) / 10) * slenderness;
 }
+/** The failure front begins at u=1 (the highest material) and travels down. */
+export function localCollapseProgress(
+  seconds: number,
+  height: number,
+  u: number,
+) {
+  const section = Math.max(0, Math.min(1, u));
+  const slenderness = Math.max(0, Math.min(1, (height / 17 - 2) / 2));
+  return smooth((seconds - (2 + (1 - section) * 10)) / 10) * slenderness;
+}
 export function pillarPoint(u: number, height: number, seconds: number) {
-  const t = Math.max(0, Math.min(1, u)),
-    bend = collapseProgress(seconds, height);
-  const upper = smooth((t - 0.2) / 0.8),
-    drop = smooth((seconds - 12) / 12) * bend;
+  const section = Math.max(0, Math.min(1, u));
+  const progress = localCollapseProgress(seconds, height, section);
+  const initialY = 39 + height * section;
   return {
-    x: -height * 0.6 * bend * upper || 0,
-    y:
-      39 +
-      height * t * (1 - 0.75 * bend * t * t) -
-      (35 + height * 0.25) * drop * t ** 4,
-    z: height * 0.08 * bend * upper,
+    x: -(18 + 12 * section) * progress || 0,
+    y: initialY + (2 + 1.5 * section - initialY) * progress,
+    z: 3 * section * progress,
   };
 }
