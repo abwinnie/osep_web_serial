@@ -5,6 +5,7 @@ import {
   liquidLevelForVolume,
 } from "./cylinder";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+import { FoamTiming } from "./foam-timing";
 import { FoamSurface } from "./foam-surface";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
@@ -162,6 +163,7 @@ export class LabScene {
   private lastLevel = -1;
   private lastSimulation: FoamSimulation | null = null;
   private settling = 0;
+  private foamTiming = new FoamTiming();
   get foamStage() {
     if (this.settling >= 24) return "泡沫堆積完成";
     if ((this.lastSimulation?.maxHeight ?? 0) - 39 <= 34) return "泡沫緩慢沉降";
@@ -172,6 +174,7 @@ export class LabScene {
     if (sim !== this.lastSimulation) {
       this.lastSimulation = sim;
       this.settling = 0;
+      this.foamTiming.reset();
       if (sim) {
         const height = Math.max(
           128,
@@ -182,7 +185,8 @@ export class LabScene {
         this.camera.position.set(135 * scale, 150 * scale, 180 * scale);
       }
     }
-    if (sim && sim.elapsed >= DURATION) this.settling += dt;
+    if (sim && sim.emitted > 0) this.foamTiming.update(sim.elapsed, sim.maxHeight, dt);
+    this.settling = this.foamTiming.settling;
     const color = new THREE.Color().setRGB(
       p.rgb[0] / 255,
       p.rgb[1] / 255,
@@ -241,6 +245,7 @@ export class LabScene {
       currentTop,
       this.settling,
       color,
+      liquidLevelForVolume(sim?.parameters.liquidVolume ?? p.liquidVolume),
     );
     this.surface.visible = particles.length > 0 && this.foamStyle === "cream";
     this.controls.update();

@@ -1,3 +1,4 @@
+import { INTERNAL_RISE_SECONDS, internalFoamTop, externalFoamGrowth } from "./foam-timing";
 import {
   pillarRadius,
 } from "./foam-profile";
@@ -154,6 +155,7 @@ export class FoamSurface extends THREE.Group {
   readonly material: THREE.MeshStandardMaterial;
   readonly texture: THREE.CanvasTexture;
   private column: FoamRibbon;
+  private inner: FoamRibbon;
   private motion = new FoamMotion();
   private motionHeight = 0;
   private peak = 0;
@@ -188,10 +190,11 @@ export class FoamSurface extends THREE.Group {
       bumpScale: 0.24,
     });
     this.column = new FoamRibbon(65, this.material);
-    this.add(this.column);
+    this.inner = new FoamRibbon(2, this.material);
+    this.add(this.column, this.inner);
     this.visible = false;
   }
-  update(elapsed: number, top: number, settling: number, color: THREE.Color) {
+  update(elapsed: number, top: number, settling: number, color: THREE.Color, liquidLevel = 5.3) {
     this.visible = elapsed > 0;
     this.material.color.copy(color).lerp(new THREE.Color(0xffffff), 0.12);
     if (elapsed < this.lastElapsed || elapsed === 0) this.peak = 0;
@@ -199,20 +202,26 @@ export class FoamSurface extends THREE.Group {
     this.peak = Math.max(this.peak, top);
     const grow = Math.min(1, elapsed / 2),
       height = Math.max(41, (settling > 0 ? this.peak : top) - 1.5);
-    this.column.visible = height > 41;
-    const h = height - 39;
+    const inside = Math.min(1, elapsed / INTERNAL_RISE_SECONDS);
+    this.inner.visible = elapsed > 0;
+    this.inner.points[0].set(0, liquidLevel, 0);
+    this.inner.points[1].set(0, internalFoamTop(elapsed, liquidLevel), 0);
+    this.inner.update(2.1, 0, true);
+    this.column.visible = height > 41 && inside >= 1;
+    const h = Math.max(0.01, (height - 39) * externalFoamGrowth(elapsed));
     const cp = this.column.points;
     if (settling === 0) {
       this.motionHeight = h;
       this.motion.reset(h);
     }
-    const points = this.motion.advance(settling, this.motionHeight || h);
+    const points = this.motion.advance(Math.min(24, settling + (settling > 0 ? 2 : 0)), this.motionHeight || h);
     cp.forEach((p, i) => p.copy(points[i]));
     this.column.update(2.1 * grow, 0, true, 0, 0);
   }
 
   dispose() {
     this.column.geometry.dispose();
+    this.inner.geometry.dispose();
     this.material.dispose();
     this.texture.dispose();
   }
