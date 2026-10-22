@@ -73,7 +73,7 @@ main {
   display: grid;
   grid-template-columns: minmax(0, 1.8fr) minmax(300px, 1fr);
   gap: 22px;
-  align-items: start;
+  align-items: stretch;
 }
 .viewport-card,
 .panel,
@@ -84,6 +84,10 @@ main {
   border-radius: 16px;
   background: white;
   overflow: hidden;
+}
+.viewport-card {
+  display: flex;
+  flex-direction: column;
 }
 .scene-top,
 .scene-bottom {
@@ -105,11 +109,15 @@ main {
   color: #187c65;
 }
 #scene {
+  flex: 1 0 490px;
+  min-height: 490px;
   height: 490px;
   position: relative;
   background: #eaf0ee;
 }
 #scene canvas {
+  position: absolute;
+  inset: 0;
   display: block;
   max-width: 100%;
   touch-action: none;
@@ -510,6 +518,8 @@ summary:focus-visible {
     grid-template-columns: 1fr;
   }
   #scene {
+    flex: none;
+    min-height: 0;
     height: 420px;
   }
   .panel {
