@@ -7,8 +7,12 @@ export class FoamMotion {
   private clock = 0;
   private height = 0;
   private delta = new Vector3();
+  readonly radii = Array.from({ length: 65 }, () => 2.1);
+  private landed = new Uint8Array(65);
+  private landing: Vector3 | null = null;
   reset(height: number) {
     this.height = height; this.clock = 0;
+    this.landing = null; this.landed.fill(0); this.radii.fill(2.1);
     this.points.forEach((p, i) => {
       p.set(0, 39 + height * i / 64, 0); this.previous[i].copy(p);
     });
@@ -24,10 +28,27 @@ export class FoamMotion {
       for (let i = 1; i < 65; i++) {
         const p = this.points[i], old = this.previous[i];
         if (!released(i)) { p.set(0, 39 + height * i / 64, 0); old.copy(p); continue; }
-        const x = p.x, y = p.y, z = p.z, contact = y <= 2.5;
-        p.x += (x - old.x) * (contact ? 0.8 : 0.997) - 3.8 * slender * dt * dt;
+        const x = p.x, y = p.y, z = p.z, contact = this.landed[i] > 0;
+        if (this.landing) {
+          // Soft deposition guide, parameterised by emitted material arc length.
+          // Sections can join only after falling onto the existing deposit.
+          const arc = (64 - i) * length, coilRadius = 3.8, pitch = 7.2;
+          const angle = arc / Math.hypot(coilRadius, pitch / (2 * Math.PI));
+          const tx = this.landing.x + coilRadius * (Math.cos(angle) - 1);
+          const tz = this.landing.z + coilRadius * Math.sin(angle);
+          const ty = 1.8 + pitch * angle / (2 * Math.PI);
+          if ((i === 64 || this.landed[i + 1]) && y <= ty + 0.5) this.landed[i] = 1;
+          if (this.landed[i]) {
+            p.x += (tx - x) * 60 * dt * dt;
+            p.y += (ty - y) * 60 * dt * dt;
+            p.z += (tz - z) * 60 * dt * dt;
+          }
+        }
+        if (this.landed[i]) this.radii[i] = Math.min(3.6, this.radii[i] + dt * 1.5);
+        const kick = this.clock < 3.5 + (1 - i / 64) * 9 ? 3.8 * slender : 0;
+        p.x += (x - old.x) * (contact ? 0.65 : 0.997) - kick * dt * dt;
         p.y += (y - old.y) * 0.997 - 22 * dt * dt;
-        p.z += (z - old.z) * (contact ? 0.8 : 0.997) + Math.sin(i * 0.43) * 1.5 * dt * dt;
+        p.z += (z - old.z) * (contact ? 0.65 : 0.997) + Math.sin(i * 0.43) * 1.5 * dt * dt;
         old.set(x, y, z);
       }
       for (let iteration = 0; iteration < 12; iteration++) {
@@ -43,16 +64,24 @@ export class FoamMotion {
         }
         for (let i = 1; i < 65; i++) {
           if (!released(i)) continue;
-          for (let j = 1; j < i - Math.ceil(5.5 / Math.max(length, 0.1)); j++) {
+          for (let j = 1; j < i - Math.ceil(8 / Math.max(length, 0.1)); j++) {
             this.delta.subVectors(this.points[i], this.points[j]);
             const d = this.delta.length();
-            if (d > 0.001 && d < 4.8) {
-              this.delta.multiplyScalar((4.8 - d) / d * 0.5);
+            const diameter = (this.radii[i] + this.radii[j]) * 0.88;
+            if (d > 0.001 && d < diameter) {
+
+              this.delta.multiplyScalar((diameter - d) / d * 0.5);
               this.points[i].add(this.delta);
               if (released(j)) this.points[j].sub(this.delta);
             }
           }
-          const p = this.points[i]; p.y = Math.max(2.4, p.y);
+          const p = this.points[i];
+          if (p.y <= this.radii[i] + 0.3) {
+            if (!this.landing) this.landing = p.clone();
+            this.landed[i] = 1;
+          }
+
+          p.y = Math.max(2.4, p.y);
           const clearance = p.y >= 39 ? 0 : p.y > 33 ? Math.sqrt(36 - (p.y - 33) ** 2) : 6;
           if (Math.hypot(p.x, p.z) < clearance) {
             const r = Math.hypot(p.x, p.z);

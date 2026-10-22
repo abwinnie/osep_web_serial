@@ -39,7 +39,7 @@ test('實際表面重用頂點、無非有限數值，堆積後保持形狀', as
   const update = (t: number) => {
     const points = motion.advance(t, 88);
     mesh.points.forEach((p, i) => p.copy(points[i]));
-    mesh.update(2.1, 0, true);
+    mesh.update(2.1, 0, true, 0, 0, motion.radii);
     assert.equal(mesh.geometry.getAttribute('position').array, buffer);
     assert.ok(Array.from(buffer).every(Number.isFinite));
   };
@@ -52,8 +52,33 @@ test('實際表面重用頂點、無非有限數值，堆積後保持形狀', as
     const length = motion.points.slice(1).reduce((sum, p, i) => sum + p.distanceTo(motion.points[i]), 0);
     assert.ok(Math.abs(length - 88) / 88 < 0.02, '折疊保持材料長度，不整根壓縮成堆');
   }
+  mesh.geometry.computeBoundingBox();
+  assert.ok(mesh.geometry.boundingBox!.min.y <= 0.1, "盤繞堆積須貼地，不可懸浮");
   const settled = Array.from(buffer);
   update(3600);
   assert.deepEqual(Array.from(buffer), settled);
   mesh.geometry.dispose(); material.dispose();
+});
+
+
+test('落下的原泡沫盤繞成多層立體堆積，筒口維持原直徑', () => {
+  const motion = new FoamMotion(); motion.reset(88);
+  motion.advance(4, 88);
+  assert.ok(motion.radii.every(r => r === 2.1), '尚未落地不可在底部憑空膨出泡沫');
+  motion.advance(24, 88);
+  const deposited = motion.points.filter((_, i) => motion.radii[i] > 3);
+  assert.ok(deposited.length > 30);
+  const top = Math.max(...deposited.map(p => p.y));
+  const bottom = Math.min(...deposited.map(p => p.y));
+  assert.ok(top - bottom > 18, '同一批材料堆出多層高度，不能攤成平面');
+  assert.ok(Math.max(...deposited.map(p => p.x)) - Math.min(...deposited.map(p => p.x)) < 16);
+  assert.ok(Math.max(...deposited.map(p => p.z)) - Math.min(...deposited.map(p => p.z)) > 5);
+  assert.equal(motion.radii[0], 2.1, '噴口截面不膨大');
+  assert.equal(motion.points.length, 65, '不另外生成地面泡沫');
+  const shape = motion.points.map(p => p.toArray()), radii = [...motion.radii];
+  motion.advance(3600, 88);
+  assert.deepEqual(motion.points.map(p => p.toArray()), shape);
+  assert.deepEqual(motion.radii, radii);
+  motion.reset(88);
+  assert.ok(motion.radii.every(r => r === 2.1));
 });

@@ -95,6 +95,7 @@ let browser;
     .locator(".viewport-card")
     .screenshot({ path: "/tmp/elephant-retained-foam.png" });
   await p.locator("#closeView").click();
+  await p.locator(".viewport-card").screenshot({ path: "/tmp/elephant-coiled-pile.png" });
   await p.setViewportSize({ width: 390, height: 844 });
   await p.waitForTimeout(1000);
   assert.ok(

@@ -64,6 +64,7 @@ export class FoamRibbon extends THREE.Mesh<
     upright = false,
     baseClosure = 0,
     originalHeight = 0,
+    sectionRadii?: readonly number[],
   ) {
     const positions = this.geometry.getAttribute(
       "position",
@@ -109,8 +110,13 @@ export class FoamRibbon extends THREE.Mesh<
               ),
             )
           : 1;
-      const flatten = 1 - 0.6 * arrival,
+      const flatten = sectionRadii ? 1 : 1 - 0.6 * arrival,
         spread = Math.sqrt((1 + (stretch - 1) * arrival) / flatten);
+      const sample = u * ((sectionRadii?.length ?? 1) - 1);
+      const lo = Math.floor(sample), blend = sample - lo;
+      const sectionScale = sectionRadii
+        ? (sectionRadii[lo] * (1 - blend) + sectionRadii[Math.min(lo + 1, sectionRadii.length - 1)] * blend) / 2.1
+        : 1;
       for (let j = 0; j <= this.sides; j++) {
         const a = (j / this.sides) * Math.PI * 2,
           c = Math.cos(a),
@@ -118,7 +124,7 @@ export class FoamRibbon extends THREE.Mesh<
         const nx = this.normal.x * c + this.binormal.x * s,
           ny = this.normal.y * c + this.binormal.y * s,
           nz = this.normal.z * c + this.binormal.z * s;
-        const localRadius = r * (1 + 0.035 * Math.sin(u * 71 + a * 3) + 0.025 * Math.sin(u * 117 - a * 5));
+        const localRadius = r * sectionScale * (1 + 0.035 * Math.sin(u * 71 + a * 3) + 0.025 * Math.sin(u * 117 - a * 5));
         const index = i * (this.sides + 1) + j;
         positions.setXYZ(
           index,
@@ -217,7 +223,7 @@ export class FoamSurface extends THREE.Group {
     }
     const points = this.motion.advance(Math.min(24, settling + (settling > 0 ? 2 : 0)), this.motionHeight || h);
     cp.forEach((p, i) => p.copy(points[i]));
-    this.column.update(2.1 * grow, 0, true, 0, 0);
+    this.column.update(2.1 * grow, 0, true, 0, 0, this.motion.radii);
   }
 
   dispose() {
