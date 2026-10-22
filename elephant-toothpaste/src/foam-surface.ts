@@ -204,7 +204,8 @@ export class FoamSurface extends THREE.Group {
       height = Math.max(41, (settling > 0 ? this.peak : top) - 1.5);
     const inside = Math.min(1, elapsed / INTERNAL_RISE_SECONDS);
     this.inner.visible = elapsed > 0;
-    this.inner.points[0].set(0, liquidLevel, 0);
+    // Slightly overlap the rendered liquid surface so rounding cannot leave a seam.
+    this.inner.points[0].set(0, Math.max(2, liquidLevel - 0.12), 0);
     this.inner.points[1].set(0, internalFoamTop(elapsed, liquidLevel), 0);
     this.inner.update(2.1, 0, true);
     this.column.visible = height > 41 && inside >= 1;

@@ -245,7 +245,7 @@ export class LabScene {
       currentTop,
       this.settling,
       color,
-      liquidLevelForVolume(sim?.parameters.liquidVolume ?? p.liquidVolume),
+      this.lastLevel,
     );
     this.surface.visible = particles.length > 0 && this.foamStyle === "cream";
     this.controls.update();
