@@ -10,9 +10,32 @@ export class FoamMotion {
   readonly radii = Array.from({ length: 65 }, () => 2.1);
   private landed = new Uint8Array(65);
   private landing: Vector3 | null = null;
+  private depositTargets = this.points.map(() => new Vector3());
+  private depositRadii = this.points.map(() => 2.1);
   reset(height: number) {
     this.height = height; this.clock = 0;
     this.landing = null; this.landed.fill(0); this.radii.fill(2.1);
+    let angle = 0, elevation = 1.8;
+    const length = height / 64;
+    for (let i = 64; i >= 0; i--) {
+      const t = (64 - i) / 64;
+      const radius = 4.8 - 3.2 * t;
+      const thickness = 4.5 - 2.2 * t;
+      const pitch = thickness * 1.75;
+      if (i < 64) {
+        const turn = length / Math.hypot(radius, pitch / (2 * Math.PI));
+        angle += turn;
+        elevation += pitch * turn / (2 * Math.PI);
+      }
+      // Broad base beside the cylinder; upper folds narrow and lean inward.
+      const centre = -12 + 2 * t;
+      this.depositTargets[i].set(
+        Math.min(-(3.65 + thickness + 0.15), centre + radius * Math.cos(angle)),
+        elevation,
+        radius * Math.sin(angle),
+      );
+      this.depositRadii[i] = thickness;
+    }
     this.points.forEach((p, i) => {
       p.set(0, 39 + height * i / 64, 0); this.previous[i].copy(p);
     });
@@ -32,11 +55,8 @@ export class FoamMotion {
         if (this.landing) {
           // Soft deposition guide, parameterised by emitted material arc length.
           // Sections can join only after falling onto the existing deposit.
-          const arc = (64 - i) * length, coilRadius = 3.8, pitch = 7.2;
-          const angle = arc / Math.hypot(coilRadius, pitch / (2 * Math.PI));
-          const tx = this.landing.x + coilRadius * (Math.cos(angle) - 1);
-          const tz = this.landing.z + coilRadius * Math.sin(angle);
-          const ty = 1.8 + pitch * angle / (2 * Math.PI);
+          const target = this.depositTargets[i];
+          const tx = target.x, ty = target.y, tz = target.z;
           if ((i === 64 || this.landed[i + 1]) && y <= ty + 0.5) this.landed[i] = 1;
           if (this.landed[i]) {
             p.x += (tx - x) * 60 * dt * dt;
@@ -44,8 +64,8 @@ export class FoamMotion {
             p.z += (tz - z) * 60 * dt * dt;
           }
         }
-        if (this.landed[i]) this.radii[i] = Math.min(3.6, this.radii[i] + dt * 1.5);
-        const kick = this.clock < 3.5 + (1 - i / 64) * 9 ? 3.8 * slender : 0;
+        if (this.landed[i]) this.radii[i] = Math.min(this.depositRadii[i], this.radii[i] + dt * 1.5);
+        const kick = this.clock < 3.5 + (1 - i / 64) * 9 ? 1.1 * slender : 0;
         p.x += (x - old.x) * (contact ? 0.65 : 0.997) - kick * dt * dt;
         p.y += (y - old.y) * 0.997 - 22 * dt * dt;
         p.z += (z - old.z) * (contact ? 0.65 : 0.997) + Math.sin(i * 0.43) * 1.5 * dt * dt;
@@ -82,7 +102,9 @@ export class FoamMotion {
           }
 
           p.y = Math.max(2.4, p.y);
-          const clearance = p.y >= 39 ? 0 : p.y > 33 ? Math.sqrt(36 - (p.y - 33) ** 2) : 6;
+          const wall = 3.65 + this.radii[i] + 0.15;
+          const clearance = p.y >= 39 ? 0 : p.y > 39 - wall
+            ? Math.sqrt(wall * wall - (p.y - (39 - wall)) ** 2) : wall;
           if (Math.hypot(p.x, p.z) < clearance) {
             const r = Math.hypot(p.x, p.z);
             if (r < 0.001) p.x = -clearance;

@@ -66,7 +66,7 @@ test('落下的原泡沫盤繞成多層立體堆積，筒口維持原直徑', ()
   motion.advance(4, 88);
   assert.ok(motion.radii.every(r => r === 2.1), '尚未落地不可在底部憑空膨出泡沫');
   motion.advance(24, 88);
-  const deposited = motion.points.filter((_, i) => motion.radii[i] > 3);
+  const deposited = motion.points.filter((_, i) => motion.radii[i] > 2.4);
   assert.ok(deposited.length > 30);
   const top = Math.max(...deposited.map(p => p.y));
   const bottom = Math.min(...deposited.map(p => p.y));
@@ -81,4 +81,18 @@ test('落下的原泡沫盤繞成多層立體堆積，筒口維持原直徑', ()
   assert.deepEqual(motion.radii, radii);
   motion.reset(88);
   assert.ok(motion.radii.every(r => r === 2.1));
+});
+
+
+test('堆積靠近量筒且下寬上細，較高噴發也不把落點推遠', () => {
+  for (const height of [88, 180]) {
+    const motion = new FoamMotion(); motion.reset(height); motion.advance(24, height);
+    const material = motion.points.map((p, i) => ({ ...p, r: motion.radii[i] })).filter(p => p.r > 2.4);
+    assert.ok(material.every(p => Math.hypot(p.x, p.z) < 18));
+    assert.ok(Math.min(...material.map(p => Math.hypot(p.x, p.z) - p.r - 3.65)) < 0.5, '堆積貼近筒身');
+    const lower = material.filter(p => p.y < 9), upper = material.filter(p => p.y > 15);
+    const mean = (points: typeof material) => points.reduce((s, p) => s + p.r, 0) / points.length;
+    assert.ok(mean(lower) > mean(upper) * 1.2, '下層明顯比上層粗厚');
+    assert.equal(motion.radii[0], 2.1);
+  }
 });
