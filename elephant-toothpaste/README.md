@@ -32,7 +32,8 @@ PLAYWRIGHT_MODULE=/path/to/playwright CHROMIUM_PATH=/usr/bin/chromium node test/
 
 - `src/catalysts.ts`：十種物質、物態／濃度基準、證據及限制。
 - `src/model.ts`：示意速率、進度與獨立固定步進粒子模型。
-- `src/foam-surface.ts`：細密泡沫外觀、直立粗柱、圓頂與側邊鼓起；固定拓撲與可重用頂點緩衝，不改變物理或紀錄。
+- `src/foam-surface.ts`：細密泡沫外觀、圓頂與連續粗條；固定拓撲與可重用頂點緩衝，不改變反應統計或紀錄。
+- `src/foam-motion.ts`：依使用者提供影片中的頂端彎折、下垂、接地折疊建立分段材料鏈；120 Hz 固定步長、段長約束、重力、自接觸與量筒／地面碰撞。下段依序失去支撐，瓶口保留連接；24 秒後保留堆積，不依時間縮小。此為示意視覺模型，不能精確重現影片或預測真實泡沫。
 - `src/cylinder.ts`：100 mL 直筒量筒、開口、底座、10–100 mL 刻度與容量對應液面。
 - `src/scene.ts`：場景、100 mL 透明量筒、固定底部液面、實例化泡沫與 OrbitControls。
 - `src/estimates.ts`：化學計量及未校準的體積／質量示意假設。

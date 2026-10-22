@@ -1,10 +1,8 @@
 import {
   pillarRadius,
-  pillarSwelling,
-  localCollapseProgress,
-  pillarPoint,
 } from "./foam-profile";
 import * as THREE from "three";
+import { FoamMotion } from "./foam-motion";
 
 // A continuous render-only skin. It never changes particle physics or recorded data.
 export class FoamRibbon extends THREE.Mesh<
@@ -119,7 +117,7 @@ export class FoamRibbon extends THREE.Mesh<
         const nx = this.normal.x * c + this.binormal.x * s,
           ny = this.normal.y * c + this.binormal.y * s,
           nz = this.normal.z * c + this.binormal.z * s;
-        const localRadius = r * (upright ? pillarSwelling(u, c) : 1);
+        const localRadius = r * (1 + 0.035 * Math.sin(u * 71 + a * 3) + 0.025 * Math.sin(u * 117 - a * 5));
         const index = i * (this.sides + 1) + j;
         positions.setXYZ(
           index,
@@ -156,6 +154,8 @@ export class FoamSurface extends THREE.Group {
   readonly material: THREE.MeshStandardMaterial;
   readonly texture: THREE.CanvasTexture;
   private column: FoamRibbon;
+  private motion = new FoamMotion();
+  private motionHeight = 0;
   private peak = 0;
   private lastElapsed = 0;
   constructor() {
@@ -187,7 +187,7 @@ export class FoamSurface extends THREE.Group {
       bumpMap: this.texture,
       bumpScale: 0.24,
     });
-    this.column = new FoamRibbon(17, this.material);
+    this.column = new FoamRibbon(65, this.material);
     this.add(this.column);
     this.visible = false;
   }
@@ -202,23 +202,15 @@ export class FoamSurface extends THREE.Group {
     this.column.visible = height > 41;
     const h = height - 39;
     const cp = this.column.points;
-    for (let i = 0; i < cp.length; i++) {
-      const u = i / (cp.length - 1),
-        point = pillarPoint(u, h, settling);
-      cp[i].set(
-        point.x + 0.12 * Math.sin(elapsed * 0.35) * Math.sin(u * Math.PI),
-        point.y,
-        point.z,
-      );
+    if (settling === 0) {
+      this.motionHeight = h;
+      this.motion.reset(h);
     }
-    this.column.update(
-      8.5 * grow,
-      elapsed * 0.35,
-      true,
-      localCollapseProgress(settling, h, 0),
-      h,
-    );
+    const points = this.motion.advance(settling, this.motionHeight || h);
+    cp.forEach((p, i) => p.copy(points[i]));
+    this.column.update(5.2 * grow, 0, true, 0, 0);
   }
+
   dispose() {
     this.column.geometry.dispose();
     this.material.dispose();
