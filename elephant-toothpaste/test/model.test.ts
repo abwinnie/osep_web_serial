@@ -7,7 +7,11 @@ import {
   liquidLevelForVolume,
 } from "../src/cylinder";
 import { pillarRadius } from "../src/foam-profile";
-import { estimateFoam, ESTIMATE_ASSUMPTIONS } from "../src/estimates";
+import {
+  estimateFoam,
+  ESTIMATE_ASSUMPTIONS,
+  ESTIMATE_NOTE,
+} from "../src/estimates";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -133,6 +137,9 @@ test("重新載入去重，損毀與未知版本資料不靜默覆寫", () => {
 
 test("體積與質量依化學計量與假設換算，不依賴粒子數，且舊紀錄不補算", () => {
   const p = defaults();
+  assert.equal(p.liquidVolume, 10);
+  assert.match(ESTIMATE_NOTE, /當次名目設定（預設 10 mL）/);
+  assert.doesNotMatch(ESTIMATE_NOTE, /初始液體 100 mL/);
   assert.deepEqual(estimateFoam(p, 0), { volume: 0, mass: 0 });
   assert.deepEqual(estimateFoam({ ...p, h2o2: 0 }, 1), { volume: 0, mass: 0 });
   const full = estimateFoam(p, 1),

@@ -11,6 +11,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import {
   visualParameters,
+  defaults,
   DURATION,
   type FoamSimulation,
   type Parameters,
@@ -122,7 +123,7 @@ export class LabScene {
     this.scene.add(rim);
     // Geometry is rebuilt only when the top level changes; bottom remains at y=2.
     this.liquid = new THREE.Mesh(
-      liquidGeometry(liquidLevelForVolume(100)),
+      liquidGeometry(liquidLevelForVolume(defaults().liquidVolume)),
       new THREE.MeshStandardMaterial({
         color: 0x41cca9,
         transparent: true,
