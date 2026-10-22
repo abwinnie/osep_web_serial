@@ -39,6 +39,7 @@ let browser;
     localStorage.getItem("elephant-toothpaste.history.v1"),
   );
   const record = JSON.parse(before)[0];
+  assert.equal(record.parameters.liquidVolume, 10);
   assert.equal(record.particles, 3600);
   assert.equal(record.height, 127.2724682122177);
   assert.ok(record.volume > 0 && record.mass > 0);

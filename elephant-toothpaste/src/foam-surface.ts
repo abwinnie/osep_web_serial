@@ -208,7 +208,7 @@ export class FoamSurface extends THREE.Group {
     }
     const points = this.motion.advance(settling, this.motionHeight || h);
     cp.forEach((p, i) => p.copy(points[i]));
-    this.column.update(5.2 * grow, 0, true, 0, 0);
+    this.column.update(2.1 * grow, 0, true, 0, 0);
   }
 
   dispose() {

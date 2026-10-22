@@ -137,7 +137,7 @@ test("體積與質量依化學計量與假設換算，不依賴粒子數，且�
   assert.deepEqual(estimateFoam({ ...p, h2o2: 0 }, 1), { volume: 0, mass: 0 });
   const full = estimateFoam(p, 1),
     half = estimateFoam(p, 0.5);
-  const moles = (100 * 0.3) / 34.0147 / 2;
+  const moles = (10 * 0.3) / 34.0147 / 2;
   const gas = moles * 24465 * 0.15;
   const liquid = (gas * 0.02) / 0.98;
   assert.ok(Math.abs(full.volume - (gas + liquid)) < 1e-8);
@@ -207,4 +207,11 @@ test("100 mL 量筒：直筒、平底底座、容量刻度與固定液底", () =
     assert.ok(Math.abs(g.boundingBox!.max.y - level) < 1e-5);
     g.dispose();
   }
+});
+
+
+test("初始 10 mL，液面下降不穿過量筒底部", () => {
+  assert.equal(defaults().liquidVolume, 10);
+  const sim = run(30, "ki", 10);
+  assert.ok(liquidLevelForVolume(sim.parameters.liquidVolume) - sim.liquidDrop > 2);
 });

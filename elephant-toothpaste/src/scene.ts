@@ -25,7 +25,6 @@ export class LabScene {
   private surface = new FoamSurface();
   private foamStyle: "cream" | "particles" = "cream";
   private liquid: THREE.Mesh;
-  private overflow: THREE.Mesh;
   private matrix = new THREE.Object3D();
   private resize: ResizeObserver;
   private foamMaterial = new THREE.MeshStandardMaterial({
@@ -144,14 +143,6 @@ export class LabScene {
     this.foam.frustumCulled = false;
     this.scene.add(this.foam);
     this.scene.add(this.surface);
-    this.overflow = new THREE.Mesh(
-      new THREE.TorusGeometry(4, 1.6, 12, 32),
-      this.foamMaterial,
-    );
-    this.overflow.rotation.x = Math.PI / 2;
-    this.overflow.position.y = 39;
-    this.overflow.visible = false;
-    this.scene.add(this.overflow);
     this.resize = new ResizeObserver(() => {
       const { width, height } = host.getBoundingClientRect();
       this.camera.aspect = width / height;
@@ -245,7 +236,6 @@ export class LabScene {
       this.foam.setMatrixAt(i, this.matrix.matrix);
     }
     this.foam.instanceMatrix.needsUpdate = true;
-    this.overflow.visible = particles.length > 0;
     this.surface.update(
       particles.length ? sim!.elapsed : 0,
       currentTop,

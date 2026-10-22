@@ -14,7 +14,7 @@ export const defaults = (): Parameters => ({
   catalystId: "ki",
   concentration: 10,
   rgb: [65, 204, 169],
-  liquidVolume: 100,
+  liquidVolume: 10,
   syncLiquid: true,
 });
 export function bounded(
@@ -163,6 +163,6 @@ export class FoamSimulation {
     return reaction(this.parameters, this.elapsed);
   }
   get liquidDrop() {
-    return this.progress * 7.5;
+    return this.progress * Math.min(7.5, this.parameters.liquidVolume * 0.33 * 0.8);
   }
 }
